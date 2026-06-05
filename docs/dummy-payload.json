@@ -1,0 +1,13 @@
+{
+    "device_id": "ACOUSTIC-PI-001",
+    "room": "R402",
+    "timestamp": "2026-06-05T10:15:00+07:00",
+    "total_dba": 67.4,
+    "mechanical_confidence": 0.81,
+    "human_activity_confidence": 0.29,
+    "low_freq_ratio": 0.45,
+    "speech_band_ratio": 0.35,
+    "spectral_flatness": 0.12,
+    "spectral_flux": 1.5,
+    "source_hint": "mechanical_like"
+}

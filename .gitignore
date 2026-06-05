@@ -1,0 +1,57 @@
+# ==========================================
+# File Rahasia & Environment Variables (SANGAT KRUSIAL)
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ==========================================
+# Python (API, Worker, Edge)
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env_python/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing & Tools
+.pytest_cache/
+htmlcov/
+.coverage
+.tox/
+
+# ==========================================
+# Frontend & Node (Jika ada tooling JS)
+# ==========================================
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ==========================================
+# Database & Logs
+# ==========================================
+*.log
+*.sqlite
+*.sqlite3
+
+# ==========================================
+# OS & Editor Files (Windows, Mac, VS Code, dll)
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
