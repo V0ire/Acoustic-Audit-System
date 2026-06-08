@@ -26,9 +26,9 @@
             </p>
         </div>
 
-        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="mt-8 mx-6 sm:mx-auto sm:w-full sm:max-w-md">
             <!-- Stark Card with Crisp 1px Border (Vercel Style Level 2 Elevation) -->
-            <div class="bg-canvas px-4 py-8 border border-hairline sm:rounded-lg sm:px-10 shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.1)]">
+            <div class="bg-canvas px-10 py-8 border border-hairline sm:rounded-lg sm:px-10 shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.1)]">
                 <form id="login-form" class="space-y-6">
                     <div>
                         <label for="username" class="block text-xs font-mono uppercase tracking-wider text-body">Username</label>
@@ -70,7 +70,7 @@
                 <div class="flex h-16 justify-between items-center">
                     <div class="flex items-center gap-3">
                         <span class="text-ink font-mono text-lg font-bold">▲</span>
-                        <h1 class="text-sm font-semibold tracking-tight text-ink font-sans">Acoustic Audit Dashboard.</h1>
+                        <h1 class="text-sm font-semibold tracking-tight text-ink font-sans">Acoustic Audit Dashboard</h1>
                     </div>
                     <div class="flex items-center gap-4">
                         <!-- Status Badge (Live Indicator) -->
@@ -102,49 +102,55 @@
             </div>
 
             <!-- METRIC CARDS -->
-            <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
                 
                 <!-- CARD 1: LATEST dBA -->
                 <div class="bg-canvas p-6 border border-hairline rounded-md shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.05)]">
                     <div class="flex justify-between items-start">
-                        <span class="text-xs font-mono uppercase tracking-wider text-body">Latest dBA</span>
+                        <span class="text-sm font-mono uppercase tracking-wider text-body">Latest dBA</span>
                         <!-- Compliance Badge -->
                         <span id="compliance-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-[#ebebeb] text-body">
                             UNKNOWN
                         </span>
                     </div>
                     <div class="mt-4 flex items-baseline gap-2">
-                        <span id="metric-dba" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
-                        <span class="text-sm text-body font-mono">dBA</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="metric-dba" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
+                            <span class="text-sm text-body font-mono">dBA</span>
+                        </div>
                     </div>
-                    <div class="mt-2 text-xs text-mute font-mono">
+                    <div class="mt-5 text-xs text-mute font-mono">
                         Estimasi SPL • Room: <span id="room-id" class="text-body font-sans">-</span>
                     </div>
                 </div>
 
                 <!-- CARD 2: MECHANICAL CONFIDENCE -->
                 <div class="bg-canvas p-6 border border-hairline rounded-md shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.05)]">
-                    <span class="text-xs font-mono uppercase tracking-wider text-body">Mechanical Confidence</span>
-                    <div class="mt-4 flex items-baseline gap-2">
-                        <span id="metric-mechanical" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
-                        <span class="text-sm text-body font-mono">%</span>
+                    <span class="text-sm font-mono uppercase tracking-wider text-body">Mechanical Confidence</span>
+                    <div class="mt-5 flex items-baseline gap-2">
+                        <div class="flex items-baseline gap-1">
+                            <span id="metric-mechanical" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
+                            <span class="text-sm text-body font-mono">%</span>
+                        </div>
                     </div>
                     <!-- Micro Progress Bar -->
                     <div class="mt-4 w-full bg-hairline h-1 rounded-full overflow-hidden">
-                        <div id="progress-mechanical" class="bg-ink h-full w-0 transition-all duration-500"></div>
+                        <div id="progress-mechanical" class="bg-ink h-full w-0 transition-all duration-500 pb-2"></div>
                     </div>
                 </div>
 
                 <!-- CARD 3: HUMAN ACTIVITY CONFIDENCE -->
                 <div class="bg-canvas p-6 border border-hairline rounded-md shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.05)]">
-                    <span class="text-xs font-mono uppercase tracking-wider text-body">Human Activity Confidence</span>
+                    <span class="text-sm font-mono uppercase tracking-wider text-body">Human Activity Confidence</span>
                     <div class="mt-4 flex items-baseline gap-2">
-                        <span id="metric-human" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
-                        <span class="text-sm text-body font-mono">%</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="metric-human" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
+                            <span class="text-sm text-body font-mono">%</span>
+                        </div>
                     </div>
                     <!-- Micro Progress Bar -->
-                    <div class="mt-4 w-full bg-hairline h-1 rounded-full overflow-hidden">
-                        <div id="progress-human" class="bg-ink h-full w-0 transition-all duration-500"></div>
+                    <div class="mt-5 w-full bg-hairline h-1 rounded-full overflow-hidden">
+                        <div id="progress-human" class="bg-ink h-full w-0 transition-all duration-500 pb-2"></div>
                     </div>
                 </div>
 
@@ -196,8 +202,8 @@
         <!-- Stark Footer (Vercel style) -->
         <footer class="border-t border-hairline bg-canvas py-6 mt-12">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                <span class="text-xs text-mute font-mono">Acoustic Audit System • Rekayasa Sistem Internet</span>
-                <span id="last-seen-footer" class="text-xs text-mute font-mono">Last seen: -</span>
+                <span class="mx-2 min-w-5 max-w-50 sm:max-w-200 text-xs sm:text-sm text-mute font-mono">Acoustic Audit System • Rekayasa Sistem Internet</span>
+                <span id="last-seen-footer" class="mx- text-xs sm:text-sm text-mute font-mono">Last seen: -</span>
             </div>
         </footer>
     </div>
