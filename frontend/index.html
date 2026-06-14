@@ -1,214 +1,56 @@
 <!DOCTYPE html>
-<html lang="id" class="h-full bg-canvas-soft text-ink antialiased">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acoustic Audit System</title>
-    <!-- Styles dari Tailwind CLI Build -->
-    <link href="css/style.css" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Acoustic Audit System - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="h-full font-sans selection:bg-ink selection:text-[#f2f2f2]">
-
-    <!-- 1. LOGIN VIEW -->
-    <div id="login-view" class="flex min-h-full flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div class="sm:mx-auto sm:w-full sm:max-w-md">
-            <div class="flex justify-center">
-                <!-- Stark Brand Icon (Triangle / Vercel style) -->
-                <div class="h-12 w-12 bg-ink flex items-center justify-center rounded-none clip-triangle">
-                    <span class="text-white font-mono text-xl font-bold">▲</span>
-                </div>
-            </div>
-            <h2 class="mt-6 text-center text-3xl font-semibold tracking-tight text-ink font-sans">Acoustic Audit System.</h2>
-            <p class="mt-2 text-center text-sm text-body">
-                Silakan masuk dengan kredensial administrator.
-            </p>
-        </div>
-
-        <div class="mt-8 mx-6 sm:mx-auto sm:w-full sm:max-w-md">
-            <!-- Stark Card with Crisp 1px Border (Vercel Style Level 2 Elevation) -->
-            <div class="bg-canvas px-10 py-8 border border-hairline sm:rounded-lg sm:px-10 shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.1)]">
-                <form id="login-form" class="space-y-6">
-                    <div>
-                        <label for="username" class="block text-xs font-mono uppercase tracking-wider text-body">Username</label>
-                        <div class="mt-1">
-                            <input id="username" name="username" type="text" autocomplete="username" required 
-                                class="block w-full h-10 border border-hairline px-3 text-sm rounded-md focus:border-ink focus:ring-1 focus:ring-ink outline-none transition-colors">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="password" class="block text-xs font-mono uppercase tracking-wider text-body">Password</label>
-                        <div class="mt-1">
-                            <input id="password" name="password" type="password" autocomplete="current-password" required 
-                                class="block w-full h-10 border border-hairline px-3 text-sm rounded-md focus:border-ink focus:ring-1 focus:ring-ink outline-none transition-colors">
-                        </div>
-                    </div>
-
-                    <!-- Error Alert -->
-                    <div id="login-error" class="hidden text-xs bg-[#f7d4d6] text-[#c50000] p-3 rounded-md border border-[#f7d4d6]">
-                        Kredensial tidak valid. Silakan coba lagi.
-                    </div>
-
-                    <div>
-                        <button type="submit" 
-                            class="flex w-full justify-center rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink transition-opacity">
-                            Log In
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2. DASHBOARD VIEW (HIDDEN BY DEFAULT) -->
-    <div id="dashboard-view" class="hidden min-h-full flex-col">
-        <!-- Sticky Header (Vercel style) -->
-        <header class="sticky top-0 z-40 w-full border-b border-hairline bg-canvas">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="flex h-16 justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <span class="text-ink font-mono text-lg font-bold">▲</span>
-                        <h1 class="text-sm font-semibold tracking-tight text-ink font-sans">Acoustic Audit Dashboard</h1>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <!-- Status Badge (Live Indicator) -->
-                        <div id="connection-status" class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-hairline text-body text-xs font-mono">
-                            <span class="h-2 w-2 rounded-full bg-mute"></span>
-                            <span id="status-text">INITIALIZING</span>
-                        </div>
-                        <!-- Logout Button -->
-                        <button id="logout-btn" class="text-xs font-mono uppercase text-body hover:text-ink transition-colors">
-                            Logout
-                        </button>
-                    </div>
-                </div>
-            </div>
+<body>
+    <div class="container">
+        <header>
+            <h1>Acoustic Audit Dashboard</h1>
+            <div id="api-status" class="status-badge connecting">Connecting...</div>
         </header>
 
-        <main class="flex-1 mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-            
-            <!-- STALE DATA WARNING SYSTEM -->
-            <div id="stale-warning" class="hidden bg-[#ffefcf] border border-[#ab570a] p-4 rounded-md flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <span class="text-lg">⚠️</span>
-                    <div>
-                        <h3 class="text-sm font-medium text-[#ab570a]">DATA STALE / SENSOR OFFLINE</h3>
-                        <p class="text-xs text-[#ab570a]/80 mt-0.5">Tidak ada pengukuran baru yang diterima selama lebih dari 120 detik.</p>
-                    </div>
+        <main>
+            <section class="summary-cards">
+                <div class="card highlight-card">
+                    <h2>Latest Noise Level</h2>
+                    <div id="latest-dba" class="value">--</div>
+                    <div class="unit">dBA</div>
                 </div>
-                <span id="last-seen-warning" class="font-mono text-xs text-[#ab570a]">Last seen: -</span>
-            </div>
+                <div class="card details-card">
+                    <h2>Device Info</h2>
+                    <p><strong>Device ID:</strong> <span id="latest-device-id">--</span></p>
+                    <p><strong>Room:</strong> <span id="latest-room">--</span></p>
+                    <p><strong>Last Seen:</strong> <span id="latest-measured-at">--</span></p>
+                </div>
+            </section>
 
-            <!-- METRIC CARDS -->
-            <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                
-                <!-- CARD 1: LATEST dBA -->
-                <div class="bg-canvas p-6 border border-hairline rounded-md shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.05)]">
-                    <div class="flex justify-between items-start">
-                        <span class="text-sm font-mono uppercase tracking-wider text-body">Latest dBA</span>
-                        <!-- Compliance Badge -->
-                        <span id="compliance-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-hairline text-body">
-                            UNKNOWN
-                        </span>
-                    </div>
-                    <div class="mt-4 flex items-baseline gap-2">
-                        <div class="flex items-baseline gap-1">
-                            <span id="metric-dba" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
-                            <span class="text-sm text-body font-mono">dBA</span>
-                        </div>
-                    </div>
-                    <div class="mt-5 text-xs text-mute font-mono">
-                        Estimasi SPL • Room: <span id="room-id" class="text-body font-sans">-</span>
-                    </div>
-                </div>
-
-                <!-- CARD 2: MECHANICAL CONFIDENCE -->
-                <div class="bg-canvas p-6 border border-hairline rounded-md shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.05)]">
-                    <span class="text-sm font-mono uppercase tracking-wider text-body">Mechanical Confidence</span>
-                    <div class="mt-5 flex items-baseline gap-2">
-                        <div class="flex items-baseline gap-1">
-                            <span id="metric-mechanical" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
-                            <span class="text-sm text-body font-mono">%</span>
-                        </div>
-                    </div>
-                    <!-- Micro Progress Bar -->
-                    <div class="mt-4 w-full bg-hairline h-1 rounded-full overflow-hidden">
-                        <div id="progress-mechanical" class="bg-ink h-full w-0 transition-all duration-500 pb-2"></div>
-                    </div>
-                </div>
-
-                <!-- CARD 3: HUMAN ACTIVITY CONFIDENCE -->
-                <div class="bg-canvas p-6 border border-hairline rounded-md shadow-[0px_1px_1px_rgba(0,0,0,0.05),0px_2px_2px_rgba(0,0,0,0.05)]">
-                    <span class="text-sm font-mono uppercase tracking-wider text-body">Human Activity Confidence</span>
-                    <div class="mt-4 flex items-baseline gap-2">
-                        <div class="flex items-baseline gap-1">
-                            <span id="metric-human" class="text-5xl font-semibold tracking-tight text-ink font-sans">-.-</span>
-                            <span class="text-sm text-body font-mono">%</span>
-                        </div>
-                    </div>
-                    <!-- Micro Progress Bar -->
-                    <div class="mt-5 w-full bg-hairline h-1 rounded-full overflow-hidden">
-                        <div id="progress-human" class="bg-ink h-full w-0 transition-all duration-500 pb-2"></div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- CHART AREA -->
-            <div class="bg-canvas p-6 border border-hairline rounded-md shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-sm font-semibold tracking-tight text-ink">Historical total_dba (dBA)</h2>
-                    <span class="text-xs text-mute font-mono">Real-time update (5s)</span>
-                </div>
-                <div class="relative h-72 w-full">
-                    <canvas id="historical-chart"></canvas>
-                </div>
-            </div>
-
-            <!-- LOG TABLE -->
-            <div class="bg-canvas border border-hairline rounded-md overflow-hidden shadow-[0px_1px_1px_rgba(0,0,0,0.05)]">
-                <div class="px-6 py-4 border-b border-hairline flex justify-between items-center">
-                    <h2 class="text-sm font-semibold tracking-tight text-ink">Recent Measurements</h2>
-                    <span class="text-xs text-mute font-mono">Showing last 10 rows</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-hairline">
-                        <thead class="bg-canvas-soft">
+            <section class="table-section">
+                <h2>Recent Measurements</h2>
+                <div class="table-container">
+                    <table id="measurements-table">
+                        <thead>
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-mono uppercase tracking-wider text-body">Measured At</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-mono uppercase tracking-wider text-body">Room</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-mono uppercase tracking-wider text-body">dBA</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-mono uppercase tracking-wider text-body">Mech Conf</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-mono uppercase tracking-wider text-body">Human Conf</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-mono uppercase tracking-wider text-body">Source Hint</th>
+                                <th>Measured At</th>
+                                <th>Device ID</th>
+                                <th>Room</th>
+                                <th>Total dBA</th>
+                                <th>Mechanical Conf.</th>
+                                <th>Human Conf.</th>
                             </tr>
                         </thead>
-                        <tbody id="measurements-tbody" class="bg-canvas divide-y divide-hairline font-mono text-xs">
-                            <!-- Rows will be injected here dynamically -->
-                            <tr id="empty-state">
-                                <td colspan="6" class="px-6 py-10 text-center text-mute">
-                                    Memuat data pengukuran...
-                                </td>
-                            </tr>
+                        <tbody id="table-body">
+                            <!-- Rows will be populated by JS -->
                         </tbody>
                     </table>
                 </div>
-            </div>
-
+                <div id="empty-state" class="empty-state hidden">No data yet</div>
+            </section>
         </main>
-
-        <!-- Stark Footer (Vercel style) -->
-        <footer class="border-t border-hairline bg-canvas py-6 mt-12">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                <span class="mx-2 min-w-5 max-w-50 sm:max-w-200 text-xs sm:text-sm text-mute font-mono">Acoustic Audit System • Rekayasa Sistem Internet</span>
-                <span id="last-seen-footer" class="mx- text-xs sm:text-sm text-mute font-mono">Last seen: -</span>
-            </div>
-        </footer>
     </div>
-
-    <!-- Script Utama -->
     <script src="app.js"></script>
 </body>
 </html>
