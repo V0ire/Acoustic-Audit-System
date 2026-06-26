@@ -3,15 +3,64 @@
 // Gunakan '' (kosong) jika dijalankan melalui web server yang sama dengan backend (Nginx proxy)
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
+let noiseChart;
+
 document.addEventListener('DOMContentLoaded', () => {
+    initChart();
     fetchMeasurements();
+    // M2: Polling setiap 5 detik
+    setInterval(fetchMeasurements, 5000);
 });
+
+function initChart() {
+    const ctx = document.getElementById('noise-chart').getContext('2d');
+    noiseChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Total dBA',
+                data: [],
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 2,
+                pointRadius: 3,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Waktu'
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'dBA'
+                    },
+                    suggestedMin: 30,
+                    suggestedMax: 100
+                }
+            },
+            animation: {
+                duration: 0 // Matikan animasi saat polling agar tidak berkedip (flicker)
+            }
+        }
+    });
+}
 
 function fetchMeasurements() {
     const statusBadge = document.getElementById('api-status');
     const tableBody = document.getElementById('table-body');
     const emptyState = document.getElementById('empty-state');
-    const tableContainer = document.querySelector('.table-container');
 
     fetch(`${API_BASE_URL}/api/measurements`)
         .then(response => {
@@ -42,7 +91,7 @@ function fetchMeasurements() {
             const timeField = latestData.measured_at || latestData.timestamp;
             document.getElementById('latest-measured-at').textContent = formatTime(timeField);
 
-            // Populate table (limit up to 10 rows for M1)
+            // Populate table (limit up to 10 rows)
             tableBody.innerHTML = '';
             const recentData = data.slice(0, 10);
             
@@ -59,6 +108,21 @@ function fetchMeasurements() {
                 `;
                 tableBody.appendChild(tr);
             });
+
+            // Update Chart (balik data agar urutan dari kiri ke kanan adalah lama ke baru)
+            const chartData = [...recentData].reverse();
+            const labels = chartData.map(row => {
+                const rt = row.measured_at || row.timestamp;
+                const d = new Date(rt);
+                return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            });
+            const dbaValues = chartData.map(row => row.total_dba);
+
+            if (noiseChart) {
+                noiseChart.data.labels = labels;
+                noiseChart.data.datasets[0].data = dbaValues;
+                noiseChart.update();
+            }
         })
         .catch(error => {
             console.error('Error fetching data:', error);
@@ -79,13 +143,16 @@ function fetchMeasurements() {
 function showEmptyState(isEmpty) {
     const emptyState = document.getElementById('empty-state');
     const tableContainer = document.querySelector('.table-container');
+    const chartSection = document.querySelector('.chart-section');
     
     if (isEmpty) {
         emptyState.classList.remove('hidden');
         tableContainer.classList.add('hidden');
+        if (chartSection) chartSection.classList.add('hidden');
     } else {
         emptyState.classList.add('hidden');
         tableContainer.classList.remove('hidden');
+        if (chartSection) chartSection.classList.remove('hidden');
     }
 }
 

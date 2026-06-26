@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acoustic Audit System - Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -25,6 +26,13 @@
                     <p><strong>Device ID:</strong> <span id="latest-device-id">--</span></p>
                     <p><strong>Room:</strong> <span id="latest-room">--</span></p>
                     <p><strong>Last Seen:</strong> <span id="latest-measured-at">--</span></p>
+                </div>
+            </section>
+
+            <section class="chart-section">
+                <h2>Noise History</h2>
+                <div class="chart-container" style="position: relative; height:300px; width:100%">
+                    <canvas id="noise-chart"></canvas>
                 </div>
             </section>
 
