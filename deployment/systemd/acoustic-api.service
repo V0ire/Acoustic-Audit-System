@@ -1,0 +1,15 @@
+[Unit]
+Description=Acoustic Audit API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=kazee
+WorkingDirectory=/home/kazee/projects/webdev/Acoustic-Audit-System/backend/api
+EnvironmentFile=/home/kazee/projects/webdev/Acoustic-Audit-System/backend/api/.env
+ExecStart=/home/kazee/projects/webdev/Acoustic-Audit-System/backend/api/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

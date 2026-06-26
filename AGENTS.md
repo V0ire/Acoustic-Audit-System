@@ -179,7 +179,7 @@ Use this stack unless explicitly instructed otherwise:
 |---|---|
 | Edge | Python 3 |
 | Sensor | INMP441 I2S microphone |
-| Edge board | Raspberry Pi 3B+ / 4 |
+| Edge board | Raspberry Pi 3B / 4 |
 | MQTT client | paho-mqtt |
 | Broker | Eclipse Mosquitto |
 | Worker | Python 3 |
