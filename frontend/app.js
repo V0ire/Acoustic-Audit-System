@@ -4,13 +4,111 @@
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
 let noiseChart;
+let pollingInterval;
 
 document.addEventListener('DOMContentLoaded', () => {
     initChart();
-    fetchMeasurements();
-    // M2: Polling setiap 5 detik
-    setInterval(fetchMeasurements, 5000);
+    
+    // Auth Check
+    const token = getAuthToken();
+    if (token) {
+        showDashboard();
+    } else {
+        showLogin();
+    }
+
+    // Login Form Handler
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
+    
+    // Logout Handler
+    document.getElementById('logout-btn').addEventListener('click', handleLogout);
 });
+
+function getAuthToken() {
+    return sessionStorage.getItem('acoustic_jwt_token');
+}
+
+function setAuthToken(token) {
+    sessionStorage.setItem('acoustic_jwt_token', token);
+}
+
+function clearAuthToken() {
+    sessionStorage.removeItem('acoustic_jwt_token');
+}
+
+function showLogin() {
+    document.getElementById('login-section').classList.remove('hidden');
+    document.getElementById('dashboard-section').classList.add('hidden');
+    document.getElementById('logout-btn').classList.add('hidden');
+    
+    // Stop polling
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+}
+
+function showDashboard() {
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('dashboard-section').classList.remove('hidden');
+    document.getElementById('logout-btn').classList.remove('hidden');
+    
+    fetchMeasurements();
+    // M2/M3: Polling setiap 5 detik
+    if (!pollingInterval) {
+        pollingInterval = setInterval(fetchMeasurements, 5000);
+    }
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const usernameInput = document.getElementById('username').value;
+    const passwordInput = document.getElementById('password').value;
+    const errorMsg = document.getElementById('login-error');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    
+    errorMsg.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Logging in...';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: usernameInput,
+                password: passwordInput
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Invalid credentials');
+        }
+
+        const data = await response.json();
+        // Cek response JSON sesuai API contract
+        if (data.token || data.access_token) {
+            setAuthToken(data.token || data.access_token);
+            e.target.reset();
+            showDashboard();
+        } else {
+            throw new Error('No token received');
+        }
+    } catch (err) {
+        errorMsg.textContent = 'Login failed. Please check username and password.';
+        errorMsg.classList.remove('hidden');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Login';
+    }
+}
+
+function handleLogout() {
+    clearAuthToken();
+    showLogin();
+}
 
 function initChart() {
     const ctx = document.getElementById('noise-chart').getContext('2d');
@@ -51,19 +149,34 @@ function initChart() {
                 }
             },
             animation: {
-                duration: 0 // Matikan animasi saat polling agar tidak berkedip (flicker)
+                duration: 0 // Disable animation for polling to avoid flickering
             }
         }
     });
 }
 
 function fetchMeasurements() {
+    const token = getAuthToken();
+    if (!token) {
+        showLogin();
+        return;
+    }
+
     const statusBadge = document.getElementById('api-status');
     const tableBody = document.getElementById('table-body');
     const emptyState = document.getElementById('empty-state');
 
-    fetch(`${API_BASE_URL}/api/measurements`)
+    fetch(`${API_BASE_URL}/api/measurements`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
         .then(response => {
+            if (response.status === 401) {
+                // Token expired or invalid
+                handleLogout();
+                throw new Error('Unauthorized');
+            }
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
@@ -87,7 +200,6 @@ function fetchMeasurements() {
             document.getElementById('latest-device-id').textContent = latestData.device_id;
             document.getElementById('latest-room').textContent = latestData.room;
             
-            // Handle timestamp mapping (measured_at vs timestamp based on API response)
             const timeField = latestData.measured_at || latestData.timestamp;
             document.getElementById('latest-measured-at').textContent = formatTime(timeField);
 
@@ -109,7 +221,7 @@ function fetchMeasurements() {
                 tableBody.appendChild(tr);
             });
 
-            // Update Chart (balik data agar urutan dari kiri ke kanan adalah lama ke baru)
+            // Update Chart
             const chartData = [...recentData].reverse();
             const labels = chartData.map(row => {
                 const rt = row.measured_at || row.timestamp;
@@ -125,6 +237,8 @@ function fetchMeasurements() {
             }
         })
         .catch(error => {
+            if (error.message === 'Unauthorized') return; // Sudah ditangani di atas, tidak perlu render error connection lost
+
             console.error('Error fetching data:', error);
             statusBadge.textContent = 'Connection lost';
             statusBadge.className = 'status-badge error';

@@ -11,10 +11,31 @@
     <div class="container">
         <header>
             <h1>Acoustic Audit Dashboard</h1>
-            <div id="api-status" class="status-badge connecting">Connecting...</div>
+            <div class="header-right">
+                <div id="api-status" class="status-badge connecting">Connecting...</div>
+                <button id="logout-btn" class="logout-btn hidden">Logout</button>
+            </div>
         </header>
 
-        <main>
+        <div id="login-section" class="login-container">
+            <div class="card login-card">
+                <h2>Login</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" required autocomplete="current-password">
+                    </div>
+                    <div id="login-error" class="error-text hidden">Login failed. Please try again.</div>
+                    <button type="submit" class="btn-primary">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <main id="dashboard-section" class="hidden">
             <section class="summary-cards">
                 <div class="card highlight-card">
                     <h2>Latest Noise Level</h2>
