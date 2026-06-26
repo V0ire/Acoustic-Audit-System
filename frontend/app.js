@@ -1,7 +1,6 @@
 // Konfigurasi API
-// Gunakan 'http://127.0.0.1:8000' jika membuka index.html langsung dari file system (file://)
-// Gunakan '' (kosong) jika dijalankan melalui web server yang sama dengan backend (Nginx proxy)
-const API_BASE_URL = 'http://127.0.0.1:8000';
+// Gunakan 'http://127.0.0.1:8000' untuk testing lokal, atau '' (kosong) saat deployment Nginx
+const API_BASE_URL = '';
 
 let noiseChart;
 let pollingInterval;
@@ -202,6 +201,38 @@ function fetchMeasurements() {
             
             const timeField = latestData.measured_at || latestData.timestamp;
             document.getElementById('latest-measured-at').textContent = formatTime(timeField);
+
+            // M4 Polish: Compliance Badge
+            const complianceBadge = document.getElementById('compliance-badge');
+            if (complianceBadge) {
+                complianceBadge.classList.remove('hidden', 'badge-normal', 'badge-warning', 'badge-danger');
+                if (latestData.total_dba < 55) {
+                    complianceBadge.textContent = 'Normal';
+                    complianceBadge.classList.add('badge-normal');
+                } else if (latestData.total_dba < 65) {
+                    complianceBadge.textContent = 'Warning';
+                    complianceBadge.classList.add('badge-warning');
+                } else {
+                    complianceBadge.textContent = 'High Noise Exposure';
+                    complianceBadge.classList.add('badge-danger');
+                }
+            }
+
+            // M4 Polish: Stale Indicator
+            const staleIndicator = document.getElementById('stale-indicator');
+            if (staleIndicator) {
+                const dataTime = new Date(timeField).getTime();
+                const now = new Date().getTime();
+                const diffSeconds = (now - dataTime) / 1000;
+
+                if (diffSeconds > 120) {
+                    staleIndicator.classList.remove('hidden');
+                    document.getElementById('latest-dba').style.opacity = '0.5';
+                } else {
+                    staleIndicator.classList.add('hidden');
+                    document.getElementById('latest-dba').style.opacity = '1';
+                }
+            }
 
             // Populate table (limit up to 10 rows)
             tableBody.innerHTML = '';
