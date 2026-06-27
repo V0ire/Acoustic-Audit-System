@@ -138,9 +138,9 @@ def rms_to_db(rms):
     """Convert RMS to estimated dBA using 2-point linear calibration.
 
     Formula: dB_est = SCALE * (20 * log10(RMS + epsilon)) + OFFSET
-    Calibrated against phone sound meter readings:
-      quiet room: raw=-35.3 → target 40 dBA
-      normal talk: raw=-31.8 → target 56 dBA
+    Calibrated against Decibel X phone sound meter:
+      quiet room: raw=-35.3 → target 33 dBA
+      normal talk: raw=-31.8 → target 65 dBA
     This is NOT certified dBA — it is a calibrated estimate.
     """
     raw_db = 20 * math.log10(rms + EPSILON)
