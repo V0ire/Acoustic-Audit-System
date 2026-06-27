@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acoustic Audit System - Dashboard</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
     <div class="container">
@@ -16,17 +18,37 @@
         <main>
             <section class="summary-cards">
                 <div class="card highlight-card">
-                    <h2>Latest Noise Level</h2>
+                    <h2>SPL Avg</h2>
                     <div id="latest-dba" class="value">--</div>
-                    <div class="unit">dBA</div>
+                    <div id="unit-label" class="unit">dB</div>
+                </div>
+                <div class="card highlight-card">
+                    <h2>SPL Max</h2>
+                    <div id="latest-max" class="value">--</div>
+                    <div class="unit">dB</div>
                 </div>
                 <div class="card details-card">
                     <h2>Device Info</h2>
-                    <p><strong>Device ID:</strong> <span id="latest-device-id">--</span></p>
+                    <p><strong>ID:</strong> <span id="latest-device-id">--</span></p>
                     <p><strong>Room:</strong> <span id="latest-room">--</span></p>
+                    <p><strong>Status:</strong> <span id="latest-status" class="status-badge">--</span></p>
                     <p><strong>Last Seen:</strong> <span id="latest-measured-at">--</span></p>
                 </div>
+                <div class="card details-card">
+                    <h2>Calibration</h2>
+                    <p><strong>Offset:</strong> <span id="latest-cal-offset">--</span> dB</p>
+                    <p><strong>Weighting:</strong> <span id="latest-weighting">--</span></p>
+                    <p><strong>Type:</strong> <span id="latest-metric-type">--</span></p>
+                </div>
             </section>
+
+            <section class="chart-section" style="margin-bottom: 30px;">
+                <h2>Time Series</h2>
+                <div class="chart-container" style="position: relative; height:300px; width:100%; background: var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--border-color);">
+                    <canvas id="spl-chart"></canvas>
+                </div>
+            </section>
+
 
             <section class="table-section">
                 <h2>Recent Measurements</h2>
@@ -37,9 +59,10 @@
                                 <th>Measured At</th>
                                 <th>Device ID</th>
                                 <th>Room</th>
-                                <th>Total dBA</th>
-                                <th>Mechanical Conf.</th>
-                                <th>Human Conf.</th>
+                                <th>SPL Avg</th>
+                                <th>SPL Max</th>
+                                <th>Status</th>
+
                             </tr>
                         </thead>
                         <tbody id="table-body">

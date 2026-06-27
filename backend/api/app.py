@@ -43,15 +43,20 @@ def get_measurements():
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
                 SELECT 
-                    device_id, 
-                    room, 
-                    measured_at, 
-                    total_dba, 
-                    mechanical_confidence, 
-                    human_activity_confidence, 
-                    source_hint
-                FROM measurements
-                ORDER BY measured_at DESC
+                    m.device_id, 
+                    d.room, 
+                    m.measured_at, 
+                    m.total_dba, 
+                    m.spl_avg_db,
+                    m.spl_max_db,
+                    m.calibration_offset_db,
+                    m.status,
+                    m.quality_flags,
+                    m.metric_type,
+                    m.weighting
+                FROM measurements m
+                JOIN devices d ON m.device_id = d.device_id
+                ORDER BY m.measured_at DESC
                 LIMIT 50
             """)
             rows = cur.fetchall()
@@ -64,6 +69,36 @@ def get_measurements():
             return rows
     except Exception as e:
         print(f"Error fetching measurements: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        conn.close()
+
+@app.get("/api/devices")
+def get_devices():
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT 
+                    d.device_id, 
+                    d.room,
+                    dh.last_seen,
+                    dh.status
+                FROM devices d
+                LEFT JOIN device_health dh ON d.device_id = dh.device_id
+            """)
+            rows = cur.fetchall()
+            
+            for row in rows:
+                if row['last_seen']:
+                    row['last_seen'] = row['last_seen'].isoformat()
+                    
+            return rows
+    except Exception as e:
+        print(f"Error fetching devices: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         conn.close()
