@@ -44,12 +44,12 @@ def get_measurements():
             cur.execute("""
                 SELECT 
                     device_id, 
-                    room, 
                     measured_at, 
-                    total_dba, 
-                    mechanical_confidence, 
-                    human_activity_confidence, 
-                    source_hint
+                    spl_avg_db, 
+                    spl_max_db,
+                    calibration_offset_db,
+                    status,
+                    quality_flags
                 FROM measurements
                 ORDER BY measured_at DESC
                 LIMIT 50
@@ -60,6 +60,9 @@ def get_measurements():
             for row in rows:
                 if row['measured_at']:
                     row['measured_at'] = row['measured_at'].isoformat()
+                # Ensure quality_flags is serializable
+                if isinstance(row.get('quality_flags'), dict):
+                    pass # already dict from RealDictCursor
                     
             return rows
     except Exception as e:

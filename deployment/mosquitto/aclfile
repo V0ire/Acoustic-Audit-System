@@ -1,0 +1,7 @@
+# ACL for acoustic devices
+# Pro Security: Restrict device to its own topics
+user acoustic_device
+topic write acoustic/devices/ACOUSTIC-PI-001/measurements
+topic write acoustic/devices/ACOUSTIC-PI-001/heartbeat
+topic write acoustic/devices/ACOUSTIC-PI-001/status
+topic write acoustic/devices/ACOUSTIC-PI-001/events
