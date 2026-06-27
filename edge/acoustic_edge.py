@@ -31,6 +31,7 @@ DEVICE_ID = os.getenv("DEVICE_ID", "ACOUSTIC-PI-001")
 ROOM = os.getenv("ROOM", "R402")
 PUBLISH_INTERVAL = int(os.getenv("PUBLISH_INTERVAL_SECONDS", 5))
 CALIBRATION_OFFSET = float(os.getenv("CALIBRATION_OFFSET", 0))
+CALIBRATION_SCALE = float(os.getenv("CALIBRATION_SCALE", 1.0))
 
 # ALSA device for INMP441
 ALSA_DEVICE = os.getenv("ALSA_DEVICE", "plughw:2,0")
@@ -134,12 +135,16 @@ def compute_rms(raw_bytes):
 
 
 def rms_to_db(rms):
-    """Convert RMS to dB estimate with calibration offset.
+    """Convert RMS to estimated dBA using 2-point linear calibration.
 
-    Formula: dB_est = 20 * log10(RMS + epsilon) + calibration_offset
-    This is NOT certified dBA — it is a relative estimate.
+    Formula: dB_est = SCALE * (20 * log10(RMS + epsilon)) + OFFSET
+    Calibrated against phone sound meter readings:
+      quiet room: raw=-35.3 → target 40 dBA
+      normal talk: raw=-31.8 → target 56 dBA
+    This is NOT certified dBA — it is a calibrated estimate.
     """
-    db = 20 * math.log10(rms + EPSILON) + CALIBRATION_OFFSET
+    raw_db = 20 * math.log10(rms + EPSILON)
+    db = CALIBRATION_SCALE * raw_db + CALIBRATION_OFFSET
     # Clamp to realistic acoustic range
     db = max(30.0, min(120.0, db))
     return round(db, 1)
