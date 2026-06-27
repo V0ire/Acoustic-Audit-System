@@ -1,0 +1,15 @@
+[Unit]
+Description=Acoustic Audit MQTT Worker
+After=network.target mosquitto.service postgresql.service
+
+[Service]
+Type=simple
+User=kazee
+WorkingDirectory=/home/kazee/projects/webdev/Acoustic-Audit-System/backend/worker
+EnvironmentFile=/home/kazee/projects/webdev/Acoustic-Audit-System/backend/worker/.env
+ExecStart=/usr/bin/python worker.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

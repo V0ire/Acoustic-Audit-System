@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acoustic Audit System - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Acoustic Audit Dashboard</h1>
+            <div id="api-status" class="status-badge connecting">Connecting...</div>
+        </header>
+
+        <main>
+            <section class="summary-cards">
+                <div class="card highlight-card">
+                    <h2>Latest Noise Level</h2>
+                    <div id="latest-dba" class="value">--</div>
+                    <div class="unit">dBA</div>
+                </div>
+                <div class="card details-card">
+                    <h2>Device Info</h2>
+                    <p><strong>Device ID:</strong> <span id="latest-device-id">--</span></p>
+                    <p><strong>Room:</strong> <span id="latest-room">--</span></p>
+                    <p><strong>Last Seen:</strong> <span id="latest-measured-at">--</span></p>
+                </div>
+            </section>
+
+            <section class="table-section">
+                <h2>Recent Measurements</h2>
+                <div class="table-container">
+                    <table id="measurements-table">
+                        <thead>
+                            <tr>
+                                <th>Measured At</th>
+                                <th>Device ID</th>
+                                <th>Room</th>
+                                <th>Total dBA</th>
+                                <th>Mechanical Conf.</th>
+                                <th>Human Conf.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Rows will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="empty-state" class="empty-state hidden">No data yet</div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
