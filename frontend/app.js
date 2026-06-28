@@ -83,6 +83,7 @@ async function handleLogin(event) {
         const data = await resp.json();
         setToken(data.access_token);
         localStorage.setItem('acoustic_user', data.display_name || data.username || username);
+        localStorage.setItem('acoustic_username', data.username || username);
         localStorage.setItem('acoustic_role', data.role || 'viewer');
         showDashboard();
         init();
@@ -317,28 +318,40 @@ function renderSmartStatus(data) {
     const room = document.getElementById('status-room');
     const loc = document.getElementById('status-location');
     const time = document.getElementById('status-time');
-    const qual = document.getElementById('status-quality');
     const icon = document.getElementById('status-icon');
 
-    title.textContent = data.noise_state;
-    msg.textContent = data.message;
+    const lastSeen = data.last_seen || data.updated_at;
+    const lastSeenText = lastSeen ? formatDateTime(lastSeen) : '--';
+
+    if (data.data_status === "No data") {
+        title.textContent = "No Data";
+        msg.textContent = data.noise_message;
+        time.textContent = lastSeenText;
+    } else if (data.is_stale) {
+        title.textContent = "Data Stale";
+        msg.textContent = `Last known condition: ${data.noise_state}. No recent measurement received. Showing the latest stored acoustic reading.`;
+        time.textContent = `${lastSeenText} | Last SPL: ${data.latest_spl || '--'} ${data.unit || 'dB'}`;
+    } else {
+        title.textContent = data.noise_state;
+        msg.textContent = data.noise_message || data.message;
+        time.textContent = lastSeenText;
+    }
+
     room.textContent = data.room || '--';
     loc.textContent = data.location || '--';
-    time.textContent = data.last_seen ? formatDateTime(data.last_seen) : '--';
-    qual.textContent = data.quality || '--';
 
     let bgClass = 'quiet-state';
     let iconStr = 'ℹ️';
     
-    if (data.severity === 'high' || data.severity === 'critical') {
+    if (data.is_stale || data.data_status === "No data") {
+        bgClass = 'offline-state';
+        iconStr = '⚠️';
+    } else if (data.noise_state === 'Alert') {
         bgClass = 'alert-state';
         iconStr = '⚠️';
-    } else if (data.severity === 'medium') {
+    } else if (data.noise_state === 'Elevated' || data.noise_state === 'Noisy') {
         bgClass = 'elevated-state';
         iconStr = '🔔';
-    } else if (data.noise_state === 'Offline') {
-        bgClass = 'offline-state';
-        iconStr = '🔌';
     } else {
         iconStr = '✅';
     }
@@ -949,19 +962,20 @@ async function loadAdminUsers() {
     tbody.innerHTML = '';
     
     data.users.forEach(u => {
+        const isSelf = u.username === (localStorage.getItem('acoustic_username') || '');
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${u.username}</td>
+            <td>${u.username} ${isSelf ? '<span class="badge">Current user</span>' : ''}</td>
             <td>${u.display_name || '-'}</td>
             <td>
-                <select onchange="updateUser('${u.username}', 'role', this.value)">
+                <select onchange="updateUser('${u.username}', 'role', this.value)" ${isSelf ? 'disabled' : ''}>
                     <option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer</option>
                     <option value="supervisor" ${u.role==='supervisor'?'selected':''}>Supervisor</option>
                     <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
                 </select>
             </td>
             <td>
-                <input type="checkbox" ${u.is_active ? 'checked' : ''} onchange="updateUser('${u.username}', 'is_active', this.checked)">
+                <input type="checkbox" ${u.is_active ? 'checked' : ''} onchange="updateUser('${u.username}', 'is_active', this.checked)" ${isSelf ? 'disabled' : ''}>
             </td>
             <td>${formatDateTime(u.last_login)}</td>
             <td>

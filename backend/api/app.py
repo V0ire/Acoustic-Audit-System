@@ -498,6 +498,10 @@ def create_user(body: UserCreate, user=Depends(require_admin)):
 
 @app.patch("/api/users/{username}")
 def update_user(username: str, body: UserUpdate, user=Depends(require_admin)):
+    if username == user["sub"]:
+        if body.role is not None or body.is_active is not None:
+            raise HTTPException(status_code=400, detail="Cannot change own role or active status")
+
     if body.role and body.role not in ["admin", "supervisor", "viewer"]:
         raise HTTPException(status_code=400, detail="Invalid role")
     
@@ -521,6 +525,16 @@ def update_user(username: str, body: UserUpdate, user=Depends(require_admin)):
     with db_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params)
+        conn.commit()
+    return {"status": "ok"}
+
+@app.delete("/api/users/{username}")
+def delete_user(username: str, user=Depends(require_admin)):
+    if username == user["sub"]:
+        raise HTTPException(status_code=400, detail="Cannot delete own account")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE users SET is_active = false WHERE username = %s", (username,))
         conn.commit()
     return {"status": "ok"}
 
@@ -556,7 +570,7 @@ def get_status_summary(user=Depends(verify_token)):
             cur.execute("""
                 SELECT 
                     m.device_id, d.room, d.location,
-                    m.spl_avg_db, m.spl_max_db, m.weighting, m.measured_at, m.quality_flags
+                    m.spl_avg_db, m.spl_max_db, m.weighting, m.measured_at, m.quality_flags, m.total_dba
                 FROM measurements m
                 JOIN devices d ON m.device_id = d.device_id
                 ORDER BY m.measured_at DESC LIMIT 1
@@ -564,53 +578,52 @@ def get_status_summary(user=Depends(verify_token)):
             row = cur.fetchone()
             
     if not row:
-        return {"noise_state": "Offline", "message": "No data available."}
+        return {
+            "device_id": "Unknown", "room": "--", "location": "--",
+            "latest_spl": 0, "latest_spl_max": 0, "weighting": "flat", "unit": "dB",
+            "noise_state": "Unknown", "noise_message": "No acoustic measurement has been received yet.",
+            "data_status": "No data", "device_status": "offline", "is_stale": True,
+            "stale_seconds": 0, "updated_at": "", "quality": "Normal"
+        }
         
     row = normalize_row(row)
-    spl = row.get("spl_avg_db") or row.get("total_dba") or 0
+    spl = row.get("spl_avg_db") or row.get("total_dba") or 0.0
     spl_max = row.get("spl_max_db") or spl
     weighting = row.get("weighting") or "flat"
     unit = "dBA" if weighting.lower() == "a" else "dB"
     
     # Calculate noise state
-    state = "Offline"
-    severity = "low"
-    message = "No recent measurement."
+    state = "Quiet"
+    message = "Last measured acoustic level was low."
     
-    # Simple check for staleness (if measured_at has timezone info)
+    if spl < 50:
+        state = "Quiet"
+        message = "Low acoustic level, suitable for focused work."
+    elif spl < 60:
+        state = "Normal"
+        message = "Typical indoor acoustic condition."
+    elif spl < 70:
+        state = "Elevated"
+        message = "Noise level is rising and may reduce comfort."
+    elif spl < 85:
+        state = "Noisy"
+        message = "Noise may disturb concentration."
+    else:
+        state = "Alert"
+        message = "High acoustic level detected."
+
     now_utc = datetime.now(timezone.utc)
     measured_at = row["measured_at"]
     if measured_at.tzinfo is None:
         measured_at = measured_at.replace(tzinfo=timezone.utc)
     time_diff = (now_utc - measured_at).total_seconds()
     
-    is_stale = time_diff > 120
+    stale_threshold = int(os.getenv("STALE_AFTER_SECONDS", "60"))
+    is_stale = time_diff > stale_threshold
     
-    if is_stale:
-        state = "Offline"
-        severity = "high"
-        message = "No recent measurement received."
-    elif spl < 50:
-        state = "Quiet"
-        severity = "low"
-        message = "Low acoustic level, suitable for focused work."
-    elif spl < 60:
-        state = "Normal"
-        severity = "low"
-        message = "Typical indoor acoustic condition."
-    elif spl < 70:
-        state = "Elevated"
-        severity = "medium"
-        message = "Noise level is rising and may reduce comfort."
-    elif spl < 85:
-        state = "Noisy"
-        severity = "high"
-        message = "Noise may disturb concentration."
-    else:
-        state = "Alert"
-        severity = "critical"
-        message = "High acoustic level detected."
-        
+    data_status = "Stale" if is_stale else "Live"
+    device_status = "stale" if is_stale else "online"
+    
     # Check quality
     qf = row.get("quality_flags") or {}
     if isinstance(qf, str):
@@ -626,6 +639,8 @@ def get_status_summary(user=Depends(verify_token)):
         quality = "Low signal"
     elif qf.get("mic_error"):
         quality = "Mic error"
+    elif not qf:
+        quality = "Not reported"
 
     return {
         "device_id": row["device_id"],
@@ -636,10 +651,12 @@ def get_status_summary(user=Depends(verify_token)):
         "weighting": weighting,
         "unit": unit,
         "noise_state": state,
-        "severity": severity,
-        "message": message,
-        "last_seen": row["measured_at"],
+        "noise_message": message,
+        "data_status": data_status,
+        "device_status": device_status,
         "is_stale": is_stale,
+        "stale_seconds": int(time_diff),
+        "updated_at": row["measured_at"].isoformat(),
         "quality": quality
     }
 
