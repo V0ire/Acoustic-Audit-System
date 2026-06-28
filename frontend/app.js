@@ -146,8 +146,24 @@ function renderLiveView(measurements) {
     document.getElementById('live-spl-avg').textContent = avgSpl ? avgSpl.toFixed(1) : '--';
     document.getElementById('live-spl-max').textContent = maxSpl ? maxSpl.toFixed(1) : '--';
     document.getElementById('live-cal-offset').textContent = latest.calibration_offset_db || '0';
-    document.getElementById('live-weighting').textContent = latest.weighting || 'N/A';
+    document.getElementById('live-weighting').textContent = latest.weighting || 'unknown';
+    document.getElementById('live-edge-version').textContent = latest.edge_version || '-';
     document.getElementById('live-last-seen').textContent = formatDateTime(latest.measured_at);
+    
+    // Quality flags
+    let flagsStr = '-';
+    if (latest.quality_flags) {
+        try {
+            const flags = typeof latest.quality_flags === 'string' ? JSON.parse(latest.quality_flags) : latest.quality_flags;
+            const flagKeys = Object.keys(flags).filter(k => flags[k]);
+            if (flagKeys.length > 0) {
+                flagsStr = flagKeys.join(', ');
+            }
+        } catch (e) {}
+    }
+    const qEl = document.getElementById('live-quality-flags');
+    qEl.textContent = flagsStr;
+    qEl.className = flagsStr !== '-' ? 'badge error' : 'badge ok';
     
     const statusEl = document.getElementById('live-status');
     // Check stale (older than 120s)
@@ -208,12 +224,25 @@ function renderLiveView(measurements) {
         const vAvg = m.spl_avg_db !== null ? m.spl_avg_db : m.total_dba;
         const vMax = m.spl_max_db !== null ? m.spl_max_db : vAvg;
         
+        let rowFlagsStr = '-';
+        if (m.quality_flags) {
+            try {
+                const flags = typeof m.quality_flags === 'string' ? JSON.parse(m.quality_flags) : m.quality_flags;
+                const flagKeys = Object.keys(flags).filter(k => flags[k]);
+                if (flagKeys.length > 0) rowFlagsStr = flagKeys.join(', ');
+            } catch (e) {}
+        }
+        
         row.innerHTML = `
             <td>${formatDateTime(m.measured_at)}</td>
             <td><code>${m.device_id}</code></td>
+            <td>${m.room || '-'}</td>
             <td>${vAvg ? vAvg.toFixed(1) : '--'}</td>
             <td>${vMax ? vMax.toFixed(1) : '--'}</td>
+            <td>${m.weighting || 'unknown'}</td>
             <td><span class="badge ${m.status === 'error' ? 'error' : 'ok'}">${m.status || 'ok'}</span></td>
+            <td>${rowFlagsStr}</td>
+            <td>${m.edge_version || '-'}</td>
         `;
         tbody.appendChild(row);
     }
@@ -312,11 +341,26 @@ function renderHistoryView(measurements) {
         }
         if (vMax !== null && vMax > max) max = vMax;
 
+        let rowFlagsStr = '-';
+        if (m.quality_flags) {
+            try {
+                const flags = typeof m.quality_flags === 'string' ? JSON.parse(m.quality_flags) : m.quality_flags;
+                const flagKeys = Object.keys(flags).filter(k => flags[k]);
+                if (flagKeys.length > 0) rowFlagsStr = flagKeys.join(', ');
+            } catch (e) {}
+        }
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${formatDateTime(m.measured_at)}</td>
+            <td><code>${m.device_id}</code></td>
+            <td>${m.room || '-'}</td>
             <td>${vAvg ? vAvg.toFixed(1) : '--'}</td>
             <td>${vMax ? vMax.toFixed(1) : '--'}</td>
+            <td>${m.weighting || 'unknown'}</td>
+            <td><span class="badge ${m.status === 'error' ? 'error' : 'ok'}">${m.status || 'ok'}</span></td>
+            <td>${rowFlagsStr}</td>
+            <td>${m.edge_version || '-'}</td>
         `;
         tbody.appendChild(row);
     });
@@ -434,6 +478,32 @@ async function generateReportSummary() {
         li.innerHTML = `<code>${formatDateTime(a.measured_at)}</code>: ${a.reason}`;
         anomaliesList.appendChild(li);
     });
+    
+    const wList = document.getElementById('report-weighting');
+    wList.innerHTML = '';
+    if (data.weighting_dist) {
+        Object.entries(data.weighting_dist).forEach(([k, v]) => {
+            wList.innerHTML += `<li>${k}: <strong>${v}</strong> samples</li>`;
+        });
+    }
+
+    const sList = document.getElementById('report-status');
+    sList.innerHTML = '';
+    if (data.status_dist) {
+        Object.entries(data.status_dist).forEach(([k, v]) => {
+            sList.innerHTML += `<li>${k}: <strong>${v}</strong> samples</li>`;
+        });
+    }
+
+    const qList = document.getElementById('report-quality');
+    qList.innerHTML = '';
+    if (data.quality_dist && Object.keys(data.quality_dist).length > 0) {
+        Object.entries(data.quality_dist).forEach(([k, v]) => {
+            qList.innerHTML += `<li>${k}: <strong>${v}</strong> samples</li>`;
+        });
+    } else {
+        qList.innerHTML = '<li>None</li>';
+    }
 
     output.classList.remove('hidden');
 }
