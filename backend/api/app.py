@@ -43,6 +43,7 @@ def get_measurements():
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
                 SELECT 
+<<<<<<< HEAD
                     m.device_id, 
                     d.room, 
                     m.measured_at, 
@@ -57,6 +58,17 @@ def get_measurements():
                 FROM measurements m
                 JOIN devices d ON m.device_id = d.device_id
                 ORDER BY m.measured_at DESC
+=======
+                    device_id, 
+                    measured_at, 
+                    spl_avg_db, 
+                    spl_max_db,
+                    calibration_offset_db,
+                    status,
+                    quality_flags
+                FROM measurements
+                ORDER BY measured_at DESC
+>>>>>>> origin/database-deployment
                 LIMIT 50
             """)
             rows = cur.fetchall()
@@ -65,6 +77,9 @@ def get_measurements():
             for row in rows:
                 if row['measured_at']:
                     row['measured_at'] = row['measured_at'].isoformat()
+                # Ensure quality_flags is serializable
+                if isinstance(row.get('quality_flags'), dict):
+                    pass # already dict from RealDictCursor
                     
             return rows
     except Exception as e:
