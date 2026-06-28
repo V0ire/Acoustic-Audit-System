@@ -3,75 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acoustic Audit System - Dashboard</title>
+    <title>Acoustic Monitoring Console</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 </head>
 <body>
+    <header>
+        <div class="header-controls">
+            <h1>Acoustic Monitoring Console</h1>
+            <div id="api-status" class="badge">Connecting...</div>
+        </div>
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-view="live">Live</button>
+            <button class="nav-tab" data-view="history">History</button>
+            <button class="nav-tab" data-view="devices">Devices</button>
+            <button class="nav-tab" data-view="report">Report</button>
+        </nav>
+        <div class="header-controls">
+            <select id="global-device-selector">
+                <option value="">Select Device...</option>
+            </select>
+        </div>
+    </header>
+
     <div class="container">
-        <header>
-            <h1>Acoustic Audit Dashboard</h1>
-            <div id="api-status" class="status-badge connecting">Connecting...</div>
-        </header>
-
         <main>
-            <section class="summary-cards">
-                <div class="card highlight-card">
-                    <h2>SPL Avg</h2>
-                    <div id="latest-dba" class="value">--</div>
-                    <div id="unit-label" class="unit">dB</div>
+            <!-- TAB 1: LIVE -->
+            <section id="view-live" class="view active">
+                <div class="card-grid">
+                    <div class="card dark highlight-card">
+                        <h3>SPL Avg</h3>
+                        <div id="live-spl-avg" class="value">--</div>
+                        <div class="unit">dB</div>
+                    </div>
+                    <div class="card highlight-card">
+                        <h3>SPL Max</h3>
+                        <div id="live-spl-max" class="value">--</div>
+                        <div class="unit">dB</div>
+                    </div>
+                    <div class="card details-card">
+                        <h3>Device Status</h3>
+                        <p><strong>Status:</strong> <span id="live-status" class="badge">--</span></p>
+                        <p><strong>Last Seen:</strong> <span id="live-last-seen">--</span></p>
+                    </div>
+                    <div class="card details-card">
+                        <h3>Calibration</h3>
+                        <p><strong>Offset:</strong> <span id="live-cal-offset">--</span> dB</p>
+                        <p><strong>Weighting:</strong> <span id="live-weighting">--</span></p>
+                    </div>
                 </div>
-                <div class="card highlight-card">
-                    <h2>SPL Max</h2>
-                    <div id="latest-max" class="value">--</div>
-                    <div class="unit">dB</div>
-                </div>
-                <div class="card details-card">
-                    <h2>Device Info</h2>
-                    <p><strong>ID:</strong> <span id="latest-device-id">--</span></p>
-                    <p><strong>Room:</strong> <span id="latest-room">--</span></p>
-                    <p><strong>Status:</strong> <span id="latest-status" class="status-badge">--</span></p>
-                    <p><strong>Last Seen:</strong> <span id="latest-measured-at">--</span></p>
-                </div>
-                <div class="card details-card">
-                    <h2>Calibration</h2>
-                    <p><strong>Offset:</strong> <span id="latest-cal-offset">--</span> dB</p>
-                    <p><strong>Weighting:</strong> <span id="latest-weighting">--</span></p>
-                    <p><strong>Type:</strong> <span id="latest-metric-type">--</span></p>
-                </div>
-            </section>
 
-            <section class="chart-section" style="margin-bottom: 30px;">
-                <h2>Time Series</h2>
-                <div class="chart-container" style="position: relative; height:300px; width:100%; background: var(--card-bg); padding:10px; border-radius:8px; border:1px solid var(--border-color);">
-                    <canvas id="spl-chart"></canvas>
+                <div class="chart-container" style="position: relative; height:300px; width:100%;">
+                    <canvas id="live-chart"></canvas>
                 </div>
-            </section>
 
-
-            <section class="table-section">
                 <h2>Recent Measurements</h2>
                 <div class="table-container">
-                    <table id="measurements-table">
+                    <table id="live-table">
                         <thead>
                             <tr>
                                 <th>Measured At</th>
                                 <th>Device ID</th>
-                                <th>Room</th>
                                 <th>SPL Avg</th>
                                 <th>SPL Max</th>
                                 <th>Status</th>
-
                             </tr>
                         </thead>
-                        <tbody id="table-body">
-                            <!-- Rows will be populated by JS -->
+                        <tbody id="live-table-body">
                         </tbody>
                     </table>
                 </div>
-                <div id="empty-state" class="empty-state hidden">No data yet</div>
             </section>
+
+            <!-- TAB 2: HISTORY -->
+            <section id="view-history" class="view">
+                <div class="controls">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="hist-start-date">
+                    </div>
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="hist-start-time" value="00:00">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="hist-end-date">
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="hist-end-time" value="23:59">
+                    </div>
+                    <div class="form-group">
+                        <label>Limit</label>
+                        <select id="hist-limit">
+                            <option value="100">100 rows</option>
+                            <option value="500">500 rows</option>
+                            <option value="1000">1000 rows</option>
+                        </select>
+                    </div>
+                    <div class="form-group btn-group" style="justify-content: flex-end; flex-direction: row; gap: 8px;">
+                        <button class="btn-primary" onclick="searchHistory()">Search</button>
+                        <button class="btn-primary" style="background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1;" onclick="downloadCsv()">Download CSV</button>
+                    </div>
+                </div>
+
+                <div class="card-grid hidden" id="hist-summary">
+                    <div class="card dark">
+                        <h3>Average SPL</h3>
+                        <div id="hist-avg-spl" class="value">--</div>
+                    </div>
+                    <div class="card">
+                        <h3>Maximum SPL</h3>
+                        <div id="hist-max-spl" class="value">--</div>
+                    </div>
+                    <div class="card">
+                        <h3>Samples</h3>
+                        <div id="hist-count" class="value">--</div>
+                    </div>
+                </div>
+
+                <div class="chart-container" style="position: relative; height:300px; width:100%;">
+                    <canvas id="hist-chart"></canvas>
+                </div>
+
+                <div class="table-container">
+                    <table id="hist-table">
+                        <thead>
+                            <tr>
+                                <th>Measured At</th>
+                                <th>SPL Avg</th>
+                                <th>SPL Max</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hist-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+
+
+            <!-- TAB 4: DEVICES -->
+            <section id="view-devices" class="view">
+                <h2>Device Fleet</h2>
+                <div class="table-container">
+                    <table id="devices-table">
+                        <thead>
+                            <tr>
+                                <th>Device ID</th>
+                                <th>Room / Location</th>
+                                <th>Health Status</th>
+                                <th>Last Seen</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 5: REPORT -->
+            <section id="view-report" class="view">
+                <h2>Statistical Report</h2>
+                <div class="controls">
+                    <div class="form-group">
+                        <label>Start Date/Time</label>
+                        <input type="datetime-local" id="report-start">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date/Time</label>
+                        <input type="datetime-local" id="report-end">
+                    </div>
+                    <div class="form-group btn-group" style="justify-content: flex-end;">
+                        <button class="btn-primary" onclick="generateReportSummary()">Generate Summary</button>
+                    </div>
+                </div>
+
+                <div id="report-output" class="hidden">
+                    <div class="card-grid">
+                        <div class="card dark">
+                            <h3>Samples Over Threshold</h3>
+                            <div id="report-threshold-count" class="value">--</div>
+                        </div>
+                        <div class="card">
+                            <h3>Min SPL</h3>
+                            <div id="report-min" class="value">--</div>
+                        </div>
+                        <div class="card">
+                            <h3>Max SPL</h3>
+                            <div id="report-max" class="value">--</div>
+                        </div>
+                        <div class="card">
+                            <h3>Avg SPL</h3>
+                            <div id="report-avg" class="value">--</div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-bottom: 24px;">
+                        <h3>Summary Analysis</h3>
+                        <p id="report-plain-text">--</p>
+                    </div>
+
+                    <div class="card-grid">
+                        <div class="card">
+                            <h3>Top Peak Times</h3>
+                            <ul id="report-peaks" style="margin: 0; padding-left: 20px; font-size: 14px;"></ul>
+                        </div>
+                        <div class="card">
+                            <h3>Anomalies Detected</h3>
+                            <ul id="report-anomalies" style="margin: 0; padding-left: 20px; font-size: 14px;"></ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </main>
     </div>
     <script src="app.js"></script>
