@@ -50,6 +50,7 @@
                 <button class="nav-tab" data-view="history">History</button>
                 <button class="nav-tab" data-view="devices">Devices</button>
                 <button class="nav-tab" data-view="report">Report</button>
+                <button class="nav-tab admin-only hidden" id="admin-tab-btn" data-view="admin">Admin</button>
             </nav>
             <div class="header-controls">
                 <select id="global-device-selector">
@@ -65,6 +66,19 @@
             <main>
                 <!-- TAB 1: LIVE -->
                 <section id="view-live" class="view active">
+                    <div id="smart-status-banner" class="status-banner quiet-state">
+                        <div class="status-icon" id="status-icon">ℹ️</div>
+                        <div class="status-content">
+                            <h2 id="status-noise-state">Loading...</h2>
+                            <p id="status-message">Waiting for data.</p>
+                            <div class="status-meta">
+                                <span>Room: <strong id="status-room">--</strong></span> | 
+                                <span>Location: <strong id="status-location">--</strong></span> | 
+                                <span>Updated: <strong id="status-time">--</strong></span> |
+                                <span>Quality: <strong id="status-quality">--</strong></span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="card-grid">
                         <div class="card dark highlight-card">
                             <h3>SPL Average</h3>
@@ -281,6 +295,16 @@
                             <h3>Summary Analysis</h3>
                             <p id="report-plain-text">--</p>
                         </div>
+                        
+                        <div class="card" style="margin-bottom: 24px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h3>AI Report Generation</h3>
+                                <div class="badge" id="llm-quota-badge">Quota: --</div>
+                            </div>
+                            <button class="btn-primary" id="btn-generate-ai" onclick="generateAiReport()" disabled>Generate AI Report</button>
+                            <div id="llm-loading" class="hidden" style="margin-top: 12px;">Generating...</div>
+                            <div id="llm-output" class="hidden" style="margin-top: 12px; padding: 12px; background: #f5f5f5; border-radius: 4px; white-space: pre-wrap; font-family: monospace;"></div>
+                        </div>
 
                         <div class="card-grid">
                             <div class="card">
@@ -292,6 +316,64 @@
                                 <ul id="report-anomalies" class="report-list"></ul>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: ADMIN CONFIGURATION -->
+                <section id="view-admin" class="view admin-only">
+                    <h2>Admin Configuration</h2>
+                    
+                    <div class="card" style="margin-bottom: 24px;">
+                        <h3>Users Management</h3>
+                        <div class="table-container">
+                            <table id="admin-users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Display Name</th>
+                                        <th>Role</th>
+                                        <th>Active</th>
+                                        <th>Last Login</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-body"></tbody>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 16px; border-top: 1px solid #eaeaea; padding-top: 16px;">
+                            <h4>Add New User</h4>
+                            <form id="add-user-form" onsubmit="handleAddUser(event)" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;">
+                                <div class="form-group"><label>Username</label><input type="text" id="add-username" required></div>
+                                <div class="form-group"><label>Display Name</label><input type="text" id="add-display-name" required></div>
+                                <div class="form-group"><label>Password</label><input type="password" id="add-password" required></div>
+                                <div class="form-group">
+                                    <label>Role</label>
+                                    <select id="add-role">
+                                        <option value="viewer">Viewer</option>
+                                        <option value="supervisor">Supervisor</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn-primary">Add User</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Device Metadata</h3>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label>Select Device</label>
+                            <select id="admin-device-select" onchange="loadAdminDevice(this.value)">
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                        <form id="edit-device-form" onsubmit="handleEditDevice(event)" class="hidden">
+                            <div class="form-group"><label>Room</label><input type="text" id="edit-device-room"></div>
+                            <div class="form-group"><label>Location / Building</label><input type="text" id="edit-device-location"></div>
+                            <div class="form-group"><label>Description</label><input type="text" id="edit-device-description"></div>
+                            <button type="submit" class="btn-primary">Update Device</button>
+                        </form>
                     </div>
                 </section>
 

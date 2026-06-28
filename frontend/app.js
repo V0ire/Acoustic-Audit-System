@@ -46,8 +46,14 @@ function showDashboard() {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('dashboard-wrapper').classList.remove('hidden');
     const user = localStorage.getItem('acoustic_user');
+    const role = localStorage.getItem('acoustic_role');
     if (user) {
         document.getElementById('user-label').textContent = user + ' · Logout';
+    }
+    if (role === 'admin') {
+        document.getElementById('admin-tab-btn').classList.remove('hidden');
+    } else {
+        document.getElementById('admin-tab-btn').classList.add('hidden');
     }
 }
 
@@ -76,7 +82,8 @@ async function handleLogin(event) {
 
         const data = await resp.json();
         setToken(data.access_token);
-        localStorage.setItem('acoustic_user', data.username || username);
+        localStorage.setItem('acoustic_user', data.display_name || data.username || username);
+        localStorage.setItem('acoustic_role', data.role || 'viewer');
         showDashboard();
         init();
     } catch (err) {
@@ -156,6 +163,10 @@ function switchView(viewName) {
     if (viewName === "devices") {
         loadDevicesView();
     }
+    if (viewName === "admin") {
+        loadAdminUsers();
+        loadAdminDevices();
+    }
 }
 
 function refreshCurrentTab() {
@@ -163,6 +174,9 @@ function refreshCurrentTab() {
         loadLiveMeasurements();
     } else if (state.activeTab === 'devices') {
         loadDevicesView();
+    } else if (state.activeTab === 'admin') {
+        loadAdminUsers();
+        loadAdminDevices();
     }
 }
 
@@ -274,6 +288,10 @@ async function loadLiveMeasurements() {
     statusBadge.textContent = 'Syncing…';
     statusBadge.className = 'badge syncing';
 
+    apiFetch('/api/status/summary').then(statusData => {
+        if (statusData) renderSmartStatus(statusData);
+    });
+
     let path = '/api/measurements?limit=100';
     if (state.selectedDeviceId) {
         path += `&device_id=${encodeURIComponent(state.selectedDeviceId)}`;
@@ -290,6 +308,43 @@ async function loadLiveMeasurements() {
     statusBadge.className = 'badge ok';
 
     renderLiveView(data);
+}
+
+function renderSmartStatus(data) {
+    const banner = document.getElementById('smart-status-banner');
+    const title = document.getElementById('status-noise-state');
+    const msg = document.getElementById('status-message');
+    const room = document.getElementById('status-room');
+    const loc = document.getElementById('status-location');
+    const time = document.getElementById('status-time');
+    const qual = document.getElementById('status-quality');
+    const icon = document.getElementById('status-icon');
+
+    title.textContent = data.noise_state;
+    msg.textContent = data.message;
+    room.textContent = data.room || '--';
+    loc.textContent = data.location || '--';
+    time.textContent = data.last_seen ? formatDateTime(data.last_seen) : '--';
+    qual.textContent = data.quality || '--';
+
+    let bgClass = 'quiet-state';
+    let iconStr = 'ℹ️';
+    
+    if (data.severity === 'high' || data.severity === 'critical') {
+        bgClass = 'alert-state';
+        iconStr = '⚠️';
+    } else if (data.severity === 'medium') {
+        bgClass = 'elevated-state';
+        iconStr = '🔔';
+    } else if (data.noise_state === 'Offline') {
+        bgClass = 'offline-state';
+        iconStr = '🔌';
+    } else {
+        iconStr = '✅';
+    }
+    
+    banner.className = 'status-banner ' + bgClass;
+    icon.textContent = iconStr;
 }
 
 function renderLiveView(measurements) {
@@ -830,4 +885,193 @@ async function generateReportSummary() {
     }
 
     output.classList.remove('hidden');
+    window.lastReportData = data;
+    document.getElementById('btn-generate-ai').disabled = false;
+    document.getElementById('llm-output').classList.add('hidden');
+    document.getElementById('llm-quota-badge').textContent = `Role: ${localStorage.getItem('acoustic_role')}`;
+}
+
+// =============================================
+// AI GENERATION
+// =============================================
+
+async function generateAiReport() {
+    if (!window.lastReportData) return;
+    
+    const btn = document.getElementById('btn-generate-ai');
+    const loading = document.getElementById('llm-loading');
+    const output = document.getElementById('llm-output');
+    
+    btn.disabled = true;
+    loading.classList.remove('hidden');
+    output.classList.add('hidden');
+    
+    const url = `${API_BASE_URL}/api/reports/generate-ai`;
+    const token = getToken();
+    
+    try {
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ summary_data: window.lastReportData })
+        });
+        
+        const data = await resp.json();
+        
+        if (!resp.ok) {
+            throw new Error(data.detail || 'Failed to generate report');
+        }
+        
+        output.textContent = data.report;
+        document.getElementById('llm-quota-badge').textContent = `Quota Used: ${data.used_quota} / ${data.max_quota}`;
+        
+    } catch (err) {
+        output.textContent = `Error: ${err.message}`;
+    } finally {
+        loading.classList.add('hidden');
+        output.classList.remove('hidden');
+        btn.disabled = false;
+    }
+}
+
+// =============================================
+// ADMIN CONFIGURATION
+// =============================================
+
+async function loadAdminUsers() {
+    const data = await apiFetch('/api/users');
+    if (!data) return;
+    
+    const tbody = document.getElementById('admin-users-body');
+    tbody.innerHTML = '';
+    
+    data.users.forEach(u => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${u.username}</td>
+            <td>${u.display_name || '-'}</td>
+            <td>
+                <select onchange="updateUser('${u.username}', 'role', this.value)">
+                    <option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer</option>
+                    <option value="supervisor" ${u.role==='supervisor'?'selected':''}>Supervisor</option>
+                    <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                </select>
+            </td>
+            <td>
+                <input type="checkbox" ${u.is_active ? 'checked' : ''} onchange="updateUser('${u.username}', 'is_active', this.checked)">
+            </td>
+            <td>${formatDateTime(u.last_login)}</td>
+            <td>
+                <button class="btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="promptEditDisplayName('${u.username}', '${u.display_name||''}')">Rename</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function handleAddUser(e) {
+    e.preventDefault();
+    const username = document.getElementById('add-username').value;
+    const display_name = document.getElementById('add-display-name').value;
+    const password = document.getElementById('add-password').value;
+    const role = document.getElementById('add-role').value;
+    
+    const token = getToken();
+    try {
+        const resp = await fetch(`${API_BASE_URL}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ username, password, display_name, role })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail);
+        
+        alert("User added successfully.");
+        document.getElementById('add-user-form').reset();
+        loadAdminUsers();
+    } catch (err) {
+        alert("Error adding user: " + err.message);
+    }
+}
+
+async function updateUser(username, field, value) {
+    const token = getToken();
+    const payload = {};
+    payload[field] = value;
+    
+    try {
+        const resp = await fetch(`${API_BASE_URL}/api/users/${username}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error("Update failed");
+    } catch (err) {
+        alert(err.message);
+        loadAdminUsers(); // revert UI on failure
+    }
+}
+
+function promptEditDisplayName(username, current) {
+    const newName = prompt("Enter new display name for " + username, current);
+    if (newName !== null) {
+        updateUser(username, 'display_name', newName).then(() => loadAdminUsers());
+    }
+}
+
+async function loadAdminDevices() {
+    const data = await apiFetch('/api/devices');
+    if (!data) return;
+    
+    const select = document.getElementById('admin-device-select');
+    select.innerHTML = '<option value="">Select...</option>';
+    data.devices.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.device_id;
+        opt.textContent = d.device_id;
+        opt.dataset.room = d.room || '';
+        opt.dataset.location = d.location || '';
+        opt.dataset.description = d.description || '';
+        select.appendChild(opt);
+    });
+}
+
+function loadAdminDevice(deviceId) {
+    const form = document.getElementById('edit-device-form');
+    if (!deviceId) {
+        form.classList.add('hidden');
+        return;
+    }
+    const opt = document.querySelector(`#admin-device-select option[value="${deviceId}"]`);
+    document.getElementById('edit-device-room').value = opt.dataset.room;
+    document.getElementById('edit-device-location').value = opt.dataset.location;
+    document.getElementById('edit-device-description').value = opt.dataset.description;
+    form.classList.remove('hidden');
+}
+
+async function handleEditDevice(e) {
+    e.preventDefault();
+    const deviceId = document.getElementById('admin-device-select').value;
+    if (!deviceId) return;
+    
+    const room = document.getElementById('edit-device-room').value;
+    const location = document.getElementById('edit-device-location').value;
+    const description = document.getElementById('edit-device-description').value;
+    
+    const token = getToken();
+    try {
+        const resp = await fetch(`${API_BASE_URL}/api/devices/${deviceId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ room, location, description })
+        });
+        if (!resp.ok) throw new Error("Failed to update device");
+        alert("Device updated.");
+        loadAdminDevices(); // refresh select data
+    } catch (err) {
+        alert(err.message);
+    }
 }

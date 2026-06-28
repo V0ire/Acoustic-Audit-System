@@ -1,4 +1,5 @@
 -- database/schema.sql
+-- Clean Pro Upgrade Schema
 
 CREATE TABLE devices (
     id SERIAL PRIMARY KEY,
@@ -14,61 +15,49 @@ CREATE TABLE users (
     username VARCHAR(100) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role VARCHAR(50) DEFAULT 'admin',
+    display_name VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- database/schema.sql
-
-CREATE TABLE devices (
+CREATE TABLE llm_usage (
     id SERIAL PRIMARY KEY,
-    device_id VARCHAR(100) UNIQUE NOT NULL,
-    room VARCHAR(100) NOT NULL,
-    location TEXT,
-    description TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role VARCHAR(50) DEFAULT 'admin',
+    username VARCHAR(100) REFERENCES users(username) ON DELETE CASCADE,
+    role VARCHAR(50),
+    action VARCHAR(50) DEFAULT 'generate',
+    prompt_type VARCHAR(100) DEFAULT 'acoustic_summary',
+    success BOOLEAN DEFAULT FALSE,
+    error_message TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE measurements (
     id SERIAL PRIMARY KEY,
     device_id VARCHAR(100) NOT NULL REFERENCES devices(device_id),
-    measured_at TIMESTAMPTZ NOT NULL,
-<<<<<<< HEAD
-    total_dba NUMERIC(6,2) NOT NULL,
-    low_freq_ratio NUMERIC(5,3),
-    speech_band_ratio NUMERIC(5,3),
-    spectral_flatness NUMERIC(5,3),
-    spectral_flux NUMERIC(5,3),
-    mechanical_confidence NUMERIC(5,3),
-    human_activity_confidence NUMERIC(5,3),
-    source_hint VARCHAR(100),
-=======
->>>>>>> origin/database-deployment
+    room VARCHAR(100),
+    measured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    schema_version VARCHAR(20) DEFAULT '1.0',
+    metric_type VARCHAR(50) DEFAULT 'spl_estimate',
+    weighting VARCHAR(50) DEFAULT 'flat',
+    window_seconds NUMERIC(6,2),
+
     spl_avg_db NUMERIC(6,2),
     spl_max_db NUMERIC(6,2),
     calibration_offset_db NUMERIC(5,2),
-    status VARCHAR(50),
-    quality_flags JSONB,
-<<<<<<< HEAD
-    metric_type VARCHAR(50),
-    weighting VARCHAR(50),
-=======
-    total_dba NUMERIC(6,2), -- Legacy fallback
->>>>>>> origin/database-deployment
+    status VARCHAR(50) DEFAULT 'ok',
+    quality_flags JSONB DEFAULT '{}'::jsonb,
+    edge_version VARCHAR(100),
+
+    total_dba NUMERIC(6,2), -- Legacy fallback only
+
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_measurements_device_time
 ON measurements (device_id, measured_at DESC);
 
-<<<<<<< HEAD
 CREATE TABLE device_health (
     device_id VARCHAR(100) PRIMARY KEY REFERENCES devices(device_id),
     last_seen TIMESTAMPTZ NOT NULL,
@@ -76,7 +65,3 @@ CREATE TABLE device_health (
     last_error TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-=======
-CREATE INDEX idx_measurements_device_time
-ON measurements (device_id, measured_at DESC);
->>>>>>> origin/database-deployment
