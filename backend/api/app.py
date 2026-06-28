@@ -3,12 +3,17 @@ import io
 import csv
 from decimal import Decimal
 from datetime import datetime
+import json
+import jwt
+import bcrypt
+from pydantic import BaseModel
 
 import psycopg2
 import psycopg2.extras
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request, HTTPException, Depends
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 try:
     from dotenv import load_dotenv
@@ -21,6 +26,11 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://acoustic_user:acoustic_pass@127.0.0.1:5432/acoustic_db",
 )
+JWT_SECRET = os.getenv("JWT_SECRET", "dev-fallback-secret-change-me")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 24
+
+security = HTTPBearer(auto_error=False)
 
 app = FastAPI(title="Acoustic Audit API", version="pro-upgrade-local")
 
@@ -45,6 +55,32 @@ def normalize_row(row):
 
 def db_conn():
     return psycopg2.connect(DATABASE_URL)
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def create_token(username: str, role: str) -> str:
+    payload = {
+        "sub": username,
+        "role": role,
+        "exp": datetime.utcnow().timestamp() + JWT_EXPIRE_HOURS * 3600
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if payload.get("exp", 0) < datetime.utcnow().timestamp():
+            raise HTTPException(status_code=401, detail="Token expired")
+        return payload
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 @app.get("/")
@@ -74,16 +110,29 @@ def health():
 
 
 @app.post("/api/login")
-def login():
+def login(body: LoginRequest):
+    with db_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT username, password_hash, role FROM users WHERE username = %s", (body.username,))
+            user = cur.fetchone()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not bcrypt.checkpw(body.password.encode("utf-8"), user["password_hash"].encode("utf-8")):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_token(user["username"], user["role"])
     return {
-        "access_token": "local-dev-token",
+        "access_token": token,
         "token_type": "bearer",
-        "note": "local stub login",
+        "username": user["username"],
+        "role": user["role"]
     }
 
 
 @app.get("/api/devices")
-def get_devices():
+def get_devices(user=Depends(verify_token)):
     query = """
         SELECT
             d.device_id,
@@ -112,6 +161,7 @@ def get_devices():
 
 @app.get("/api/measurements")
 def get_measurements(
+    user=Depends(verify_token),
     device_id: str | None = None,
     start: str | None = None,
     end: str | None = None,
@@ -171,9 +221,11 @@ def get_measurements(
 
 @app.get("/api/measurements/export.csv")
 def export_measurements_csv(
+    user=Depends(verify_token),
     device_id: str | None = None,
     start: str | None = None,
     end: str | None = None,
+    limit: int = Query(default=100, ge=1, le=1000),
 ):
     params = []
     where_clauses = []
@@ -210,8 +262,11 @@ def export_measurements_csv(
         FROM measurements m
         JOIN devices d ON m.device_id = d.device_id
         {where_clause}
-        ORDER BY m.measured_at ASC
+        ORDER BY m.measured_at DESC
+        LIMIT %s
     """
+    
+    params.append(limit)
 
     with db_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -249,6 +304,7 @@ def export_measurements_csv(
 
 @app.get("/api/reports/summary")
 def get_report_summary(
+    user=Depends(verify_token),
     device_id: str | None = None,
     start: str | None = None,
     end: str | None = None,

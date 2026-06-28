@@ -4,248 +4,299 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acoustic Monitoring Console</title>
+    <meta name="description" content="Real-time acoustic monitoring dashboard for IoT edge devices">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <header>
-        <div class="header-controls">
-            <h1>Acoustic Monitoring Console</h1>
-            <div id="api-status" class="badge">Connecting...</div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="40" height="40" rx="8" fill="#171717"/>
+                    <path d="M12 28V18L20 12L28 18V28H23V22H17V28H12Z" fill="white"/>
+                </svg>
+                <h1>Acoustic Monitoring Console</h1>
+                <p class="login-subtitle">Real-time acoustic monitoring dashboard</p>
+            </div>
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="login-field">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" placeholder="Enter username" autocomplete="username" required>
+                </div>
+                <div class="login-field">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" placeholder="Enter password" autocomplete="current-password" required>
+                </div>
+                <div id="login-error" class="login-error hidden"></div>
+                <button type="submit" class="btn-primary login-btn" id="login-submit">Sign In</button>
+            </form>
+            <p class="login-footer">Acoustic Audit System &middot; Teknik Elektro</p>
         </div>
-        <nav class="nav-tabs">
-            <button class="nav-tab active" data-view="live">Live</button>
-            <button class="nav-tab" data-view="history">History</button>
-            <button class="nav-tab" data-view="devices">Devices</button>
-            <button class="nav-tab" data-view="report">Report</button>
-        </nav>
-        <div class="header-controls">
-            <select id="global-device-selector">
-                <option value="">Select Device...</option>
-            </select>
-        </div>
-    </header>
+    </div>
 
-    <div class="container">
-        <main>
-            <!-- TAB 1: LIVE -->
-            <section id="view-live" class="view active">
-                <div class="card-grid">
-                    <div class="card dark highlight-card">
-                        <h3>SPL Avg</h3>
-                        <div id="live-spl-avg" class="value">--</div>
-                        <div class="unit">dB</div>
-                    </div>
-                    <div class="card highlight-card">
-                        <h3>SPL Max</h3>
-                        <div id="live-spl-max" class="value">--</div>
-                        <div class="unit">dB</div>
-                    </div>
-                    <div class="card details-card">
-                        <h3>Device Status</h3>
-                        <p><strong>Status:</strong> <span id="live-status" class="badge">--</span></p>
-                        <p><strong>Last Seen:</strong> <span id="live-last-seen">--</span></p>
-                    </div>
-                    <div class="card details-card">
-                        <h3>Sensor Info</h3>
-                        <p><strong>Cal Offset:</strong> <span id="live-cal-offset">--</span> dB</p>
-                        <p><strong>Weighting:</strong> <span id="live-weighting">--</span></p>
-                        <p><strong>Edge Ver:</strong> <span id="live-edge-version">--</span></p>
-                    </div>
-                    <div class="card details-card">
-                        <h3>Quality Flags</h3>
-                        <div id="live-quality-flags" class="badge">--</div>
-                    </div>
-                </div>
+    <!-- DASHBOARD (hidden until login) -->
+    <div id="dashboard-wrapper" class="hidden">
 
-                <div class="chart-container" style="position: relative; height:300px; width:100%;">
-                    <canvas id="live-chart"></canvas>
-                </div>
+        <header>
+            <div class="header-controls">
+                <h1>Acoustic Monitoring Console</h1>
+                <div id="api-status" class="badge">Connecting&hellip;</div>
+            </div>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-view="live">Live</button>
+                <button class="nav-tab" data-view="history">History</button>
+                <button class="nav-tab" data-view="devices">Devices</button>
+                <button class="nav-tab" data-view="report">Report</button>
+            </nav>
+            <div class="header-controls">
+                <select id="global-device-selector">
+                    <option value="">Select Device&hellip;</option>
+                </select>
+                <button class="btn-secondary" id="logout-btn" onclick="handleLogout()">
+                    <span id="user-label">Logout</span>
+                </button>
+            </div>
+        </header>
 
-                <h2>Recent Measurements</h2>
-                <div class="table-container">
-                    <table id="live-table">
-                        <thead>
-                            <tr>
-                                <th>Measured At</th>
-                                <th>Device ID</th>
-                                <th>SPL Avg</th>
-                                <th>SPL Max</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="live-table-body">
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- TAB 2: HISTORY -->
-            <section id="view-history" class="view">
-                <div class="controls">
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" id="hist-start-date">
-                    </div>
-                    <div class="form-group">
-                        <label>Start Time</label>
-                        <input type="time" id="hist-start-time" value="00:00">
-                    </div>
-                    <div class="form-group">
-                        <label>End Date</label>
-                        <input type="date" id="hist-end-date">
-                    </div>
-                    <div class="form-group">
-                        <label>End Time</label>
-                        <input type="time" id="hist-end-time" value="23:59">
-                    </div>
-                    <div class="form-group">
-                        <label>Limit</label>
-                        <select id="hist-limit">
-                            <option value="100">100 rows</option>
-                            <option value="500">500 rows</option>
-                            <option value="1000">1000 rows</option>
-                        </select>
-                    </div>
-                    <div class="form-group btn-group" style="justify-content: flex-end; flex-direction: row; gap: 8px;">
-                        <button class="btn-primary" onclick="searchHistory()">Search</button>
-                        <button class="btn-primary" style="background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1;" onclick="downloadCsv()">Download CSV</button>
-                    </div>
-                </div>
-
-                <div class="card-grid hidden" id="hist-summary">
-                    <div class="card dark">
-                        <h3>Average SPL</h3>
-                        <div id="hist-avg-spl" class="value">--</div>
-                    </div>
-                    <div class="card">
-                        <h3>Maximum SPL</h3>
-                        <div id="hist-max-spl" class="value">--</div>
-                    </div>
-                    <div class="card">
-                        <h3>Samples</h3>
-                        <div id="hist-count" class="value">--</div>
-                    </div>
-                </div>
-
-                <div class="chart-container" style="position: relative; height:300px; width:100%;">
-                    <canvas id="hist-chart"></canvas>
-                </div>
-
-                <div class="table-container">
-                    <table id="hist-table">
-                        <thead>
-                            <tr>
-                                <th>Measured At</th>
-                                <th>Device ID</th>
-                                <th>Room</th>
-                                <th>SPL Avg</th>
-                                <th>SPL Max</th>
-                                <th>Weighting</th>
-                                <th>Status</th>
-                                <th>Quality</th>
-                                <th>Edge Ver</th>
-                            </tr>
-                        </thead>
-                        <tbody id="hist-table-body">
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-
-
-            <!-- TAB 4: DEVICES -->
-            <section id="view-devices" class="view">
-                <h2>Device Fleet</h2>
-                <div class="table-container">
-                    <table id="devices-table">
-                        <thead>
-                            <tr>
-                                <th>Device ID</th>
-                                <th>Room / Location</th>
-                                <th>Health Status</th>
-                                <th>Last Seen</th>
-                                <th>Description</th>
-                            </tr>
-                        </thead>
-                        <tbody id="devices-table-body">
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- TAB 5: REPORT -->
-            <section id="view-report" class="view">
-                <h2>Statistical Report</h2>
-                <div class="controls">
-                    <div class="form-group">
-                        <label>Start Date/Time</label>
-                        <input type="datetime-local" id="report-start">
-                    </div>
-                    <div class="form-group">
-                        <label>End Date/Time</label>
-                        <input type="datetime-local" id="report-end">
-                    </div>
-                    <div class="form-group btn-group" style="justify-content: flex-end;">
-                        <button class="btn-primary" onclick="generateReportSummary()">Generate Summary</button>
-                    </div>
-                </div>
-
-                <div id="report-output" class="hidden">
+        <div class="container">
+            <main>
+                <!-- TAB 1: LIVE -->
+                <section id="view-live" class="view active">
                     <div class="card-grid">
-                        <div class="card dark">
-                            <h3>Samples Over Threshold</h3>
-                            <div id="report-threshold-count" class="value">--</div>
+                        <div class="card dark highlight-card">
+                            <h3>SPL Average</h3>
+                            <div id="live-spl-avg" class="value">--</div>
+                            <div class="unit" id="live-unit-avg">dB</div>
                         </div>
-                        <div class="card">
-                            <h3>Min SPL</h3>
-                            <div id="report-min" class="value">--</div>
+                        <div class="card highlight-card">
+                            <h3>SPL Maximum</h3>
+                            <div id="live-spl-max" class="value">--</div>
+                            <div class="unit" id="live-unit-max">dB</div>
                         </div>
-                        <div class="card">
-                            <h3>Max SPL</h3>
-                            <div id="report-max" class="value">--</div>
+                        <div class="card details-card">
+                            <h3>Device Status</h3>
+                            <p><strong>Status:</strong> <span id="live-status" class="badge">--</span></p>
+                            <p><strong>Last Seen:</strong> <span id="live-last-seen">--</span></p>
                         </div>
-                        <div class="card">
-                            <h3>Avg SPL</h3>
-                            <div id="report-avg" class="value">--</div>
+                        <div class="card details-card">
+                            <h3>Sensor / Calibration</h3>
+                            <p><strong>Cal Offset:</strong> <span id="live-cal-offset">--</span> dB</p>
+                            <p><strong>Weighting:</strong> <span id="live-weighting">--</span></p>
+                            <p><strong>Edge Version:</strong> <span id="live-edge-version">--</span></p>
                         </div>
-                    </div>
-                    
-                    <div class="card-grid">
-                        <div class="card">
-                            <h3>Weighting</h3>
-                            <ul id="report-weighting" style="margin: 0; padding-left: 20px; font-size: 14px;"></ul>
-                        </div>
-                        <div class="card">
-                            <h3>Status</h3>
-                            <ul id="report-status" style="margin: 0; padding-left: 20px; font-size: 14px;"></ul>
-                        </div>
-                        <div class="card">
+                        <div class="card details-card">
                             <h3>Quality Flags</h3>
-                            <ul id="report-quality" style="margin: 0; padding-left: 20px; font-size: 14px;"></ul>
+                            <div id="live-quality-badge" class="badge">--</div>
+                            <p id="live-quality-detail" class="quality-detail">--</p>
                         </div>
                     </div>
 
-                    <div class="card" style="margin-bottom: 24px;">
-                        <h3>Summary Analysis</h3>
-                        <p id="report-plain-text">--</p>
+                    <div class="chart-container">
+                        <p class="chart-subtitle">Recent SPL estimate trend</p>
+                        <div style="position: relative; height:300px; width:100%;">
+                            <canvas id="live-chart"></canvas>
+                        </div>
+                        <div id="live-chart-empty" class="empty-state hidden">No measurement data available yet.</div>
                     </div>
 
-                    <div class="card-grid">
+                    <h2>Recent Measurements</h2>
+                    <div class="table-container">
+                        <table id="live-table">
+                            <thead>
+                                <tr>
+                                    <th>Measured At</th>
+                                    <th>Device ID</th>
+                                    <th>Room</th>
+                                    <th>SPL Avg</th>
+                                    <th>SPL Max</th>
+                                    <th>Weighting</th>
+                                    <th>Status</th>
+                                    <th>Quality</th>
+                                    <th>Edge Ver</th>
+                                </tr>
+                            </thead>
+                            <tbody id="live-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- TAB 2: HISTORY -->
+                <section id="view-history" class="view">
+                    <div class="controls">
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" id="hist-start-date">
+                        </div>
+                        <div class="form-group">
+                            <label>Start Time</label>
+                            <input type="time" id="hist-start-time" value="00:00">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date</label>
+                            <input type="date" id="hist-end-date">
+                        </div>
+                        <div class="form-group">
+                            <label>End Time</label>
+                            <input type="time" id="hist-end-time" value="23:59">
+                        </div>
+                        <div class="form-group">
+                            <label>Limit</label>
+                            <select id="hist-limit">
+                                <option value="50">50 rows</option>
+                                <option value="100" selected>100 rows</option>
+                                <option value="500">500 rows</option>
+                                <option value="1000">1000 rows</option>
+                            </select>
+                        </div>
+                        <div class="form-group btn-group" style="justify-content: flex-end; flex-direction: row; gap: 8px;">
+                            <button class="btn-primary" onclick="searchHistory()">Search</button>
+                            <button class="btn-secondary" onclick="downloadCsv()">Download CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="card-grid hidden" id="hist-summary">
+                        <div class="card dark">
+                            <h3>Average SPL</h3>
+                            <div id="hist-avg-spl" class="value">--</div>
+                        </div>
                         <div class="card">
-                            <h3>Top Peak Times</h3>
-                            <ul id="report-peaks" style="margin: 0; padding-left: 20px; font-size: 14px;"></ul>
+                            <h3>Maximum SPL</h3>
+                            <div id="hist-max-spl" class="value">--</div>
                         </div>
                         <div class="card">
-                            <h3>Anomalies Detected</h3>
-                            <ul id="report-anomalies" style="margin: 0; padding-left: 20px; font-size: 14px;"></ul>
+                            <h3>Samples</h3>
+                            <div id="hist-count" class="value">--</div>
                         </div>
                     </div>
-                </div>
-            </section>
 
-        </main>
+                    <div class="chart-container">
+                        <p class="chart-subtitle">Historical SPL trend</p>
+                        <div style="position: relative; height:300px; width:100%;">
+                            <canvas id="hist-chart"></canvas>
+                        </div>
+                        <div id="hist-chart-empty" class="empty-state hidden">Run a search to see historical data.</div>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="hist-table">
+                            <thead>
+                                <tr>
+                                    <th>Measured At</th>
+                                    <th>Device ID</th>
+                                    <th>Room</th>
+                                    <th>SPL Avg</th>
+                                    <th>SPL Max</th>
+                                    <th>Weighting</th>
+                                    <th>Status</th>
+                                    <th>Quality</th>
+                                    <th>Edge Ver</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hist-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- TAB 3: DEVICES -->
+                <section id="view-devices" class="view">
+                    <h2>Device Fleet</h2>
+                    <div class="table-container">
+                        <table id="devices-table">
+                            <thead>
+                                <tr>
+                                    <th>Device ID</th>
+                                    <th>Room / Location</th>
+                                    <th>Health Status</th>
+                                    <th>Last Seen</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devices-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- TAB 4: REPORT -->
+                <section id="view-report" class="view">
+                    <h2>Statistical Report</h2>
+                    <div class="controls">
+                        <div class="form-group">
+                            <label>Start Date/Time</label>
+                            <input type="datetime-local" id="report-start">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date/Time</label>
+                            <input type="datetime-local" id="report-end">
+                        </div>
+                        <div class="form-group btn-group" style="justify-content: flex-end;">
+                            <button class="btn-primary" onclick="generateReportSummary()">Generate Summary</button>
+                        </div>
+                    </div>
+
+                    <div id="report-output" class="hidden">
+                        <div class="card-grid">
+                            <div class="card dark">
+                                <h3>Samples Over Threshold</h3>
+                                <div id="report-threshold-count" class="value">--</div>
+                            </div>
+                            <div class="card">
+                                <h3>Min SPL</h3>
+                                <div id="report-min" class="value">--</div>
+                            </div>
+                            <div class="card">
+                                <h3>Max SPL</h3>
+                                <div id="report-max" class="value">--</div>
+                            </div>
+                            <div class="card">
+                                <h3>Avg SPL</h3>
+                                <div id="report-avg" class="value">--</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-grid">
+                            <div class="card">
+                                <h3>Weighting Distribution</h3>
+                                <p class="card-hint">How measurements were frequency-weighted.</p>
+                                <ul id="report-weighting" class="report-list"></ul>
+                            </div>
+                            <div class="card">
+                                <h3>Status Distribution</h3>
+                                <p class="card-hint">Reported measurement status from edge.</p>
+                                <ul id="report-status" class="report-list"></ul>
+                            </div>
+                            <div class="card">
+                                <h3>Quality Flag Counts</h3>
+                                <p class="card-hint">Number of samples with each quality issue.</p>
+                                <ul id="report-quality" class="report-list"></ul>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin-bottom: 24px;">
+                            <h3>Summary Analysis</h3>
+                            <p id="report-plain-text">--</p>
+                        </div>
+
+                        <div class="card-grid">
+                            <div class="card">
+                                <h3>Top Peak Times</h3>
+                                <ul id="report-peaks" class="report-list"></ul>
+                            </div>
+                            <div class="card">
+                                <h3>Anomalies Detected</h3>
+                                <ul id="report-anomalies" class="report-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
     </div>
     <script src="app.js"></script>
 </body>
