@@ -60,7 +60,7 @@ def process_message(client, userdata, msg):
     except Exception as e:
         print(f"[worker] Error: {e}")
 
-client = mqtt.Client()
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.username_pw_set(MQTT_USER, MQTT_PASS)
 client.on_message = process_message
 client.connect(MQTT_HOST, MQTT_PORT, 60)
