@@ -312,52 +312,48 @@ async function loadLiveMeasurements() {
 }
 
 function renderSmartStatus(data) {
-    const banner = document.getElementById('smart-status-banner');
     const title = document.getElementById('status-noise-state');
     const msg = document.getElementById('status-message');
-    const room = document.getElementById('status-room');
-    const loc = document.getElementById('status-location');
-    const time = document.getElementById('status-time');
-    const icon = document.getElementById('status-icon');
+    const subtitle = document.getElementById('status-subtitle');
+    const roomMeta = document.getElementById('status-room-meta');
+    const locMeta = document.getElementById('status-location-meta');
+    const timeMeta = document.getElementById('status-time-meta');
+    const dataBadge = document.getElementById('status-data-badge');
+    const indicator = document.getElementById('status-indicator');
 
     const lastSeen = data.last_seen || data.updated_at;
     const lastSeenText = lastSeen ? formatDateTime(lastSeen) : '--';
 
-    if (data.data_status === "No data") {
-        title.textContent = "No Data";
-        msg.textContent = data.noise_message;
-        time.textContent = lastSeenText;
+    if (data.data_status === 'No data') {
+        title.textContent = 'No Data';
+        msg.textContent = data.noise_message || 'No acoustic measurement has been received yet.';
+        subtitle.classList.add('hidden');
+        indicator.className = 'status-hero-indicator nodata';
+        dataBadge.textContent = 'No data';
+        dataBadge.className = 'badge stale';
     } else if (data.is_stale) {
-        title.textContent = "Data Stale";
-        msg.textContent = `Last known condition: ${data.noise_state}. No recent measurement received. Showing the latest stored acoustic reading.`;
-        time.textContent = `${lastSeenText} | Last SPL: ${data.latest_spl || '--'} ${data.unit || 'dB'}`;
+        title.textContent = 'Data Stale';
+        msg.textContent = 'No recent measurement received. Showing the latest stored acoustic reading.';
+        subtitle.textContent = 'Last known condition: ' + (data.last_known_noise_state || data.noise_state);
+        subtitle.classList.remove('hidden');
+        indicator.className = 'status-hero-indicator stale';
+        dataBadge.textContent = 'Stale';
+        dataBadge.className = 'badge stale';
     } else {
         title.textContent = data.noise_state;
-        msg.textContent = data.noise_message || data.message;
-        time.textContent = lastSeenText;
+        msg.textContent = data.noise_message || data.message || '';
+        subtitle.classList.add('hidden');
+        indicator.className = 'status-hero-indicator live';
+        dataBadge.textContent = 'Live';
+        dataBadge.className = 'badge ok';
+        if (data.noise_state === 'Alert') {
+            indicator.className = 'status-hero-indicator alert';
+        }
     }
 
-    room.textContent = data.room || '--';
-    loc.textContent = data.location || '--';
-
-    let bgClass = 'quiet-state';
-    let iconStr = 'ℹ️';
-    
-    if (data.is_stale || data.data_status === "No data") {
-        bgClass = 'offline-state';
-        iconStr = '⚠️';
-    } else if (data.noise_state === 'Alert') {
-        bgClass = 'alert-state';
-        iconStr = '⚠️';
-    } else if (data.noise_state === 'Elevated' || data.noise_state === 'Noisy') {
-        bgClass = 'elevated-state';
-        iconStr = '🔔';
-    } else {
-        iconStr = '✅';
-    }
-    
-    banner.className = 'status-banner ' + bgClass;
-    icon.textContent = iconStr;
+    roomMeta.textContent = data.room && data.room !== '--' ? 'Room ' + data.room : '--';
+    locMeta.textContent = data.location || '--';
+    timeMeta.textContent = 'Updated ' + lastSeenText;
 }
 
 function renderLiveView(measurements) {
@@ -382,6 +378,14 @@ function renderLiveView(measurements) {
 
     document.getElementById('live-cal-offset').textContent = latest.calibration_offset_db != null ? latest.calibration_offset_db : '0';
     document.getElementById('live-weighting').textContent = getWeightingLabel(latest.weighting);
+    const wHint = document.getElementById('live-weighting-hint');
+    if (latest.weighting && latest.weighting.toUpperCase() === 'A') {
+        wHint.textContent = 'A-weighting approximates human hearing sensitivity.';
+    } else if (latest.weighting && latest.weighting.toLowerCase() === 'flat') {
+        wHint.textContent = 'Flat weighting measures the captured signal without A-weighting.';
+    } else {
+        wHint.textContent = 'Weighting type unknown.';
+    }
     document.getElementById('live-edge-version').textContent = latest.edge_version || 'Not reported';
     document.getElementById('live-last-seen').textContent = formatDateTime(latest.measured_at);
 
@@ -942,7 +946,7 @@ async function generateAiReport() {
         document.getElementById('llm-quota-badge').textContent = `Quota Used: ${data.used_quota} / ${data.max_quota}`;
         
     } catch (err) {
-        output.textContent = `Error: ${err.message}`;
+        output.textContent = 'AI provider unavailable. Showing deterministic summary instead.\n\n' + (window.lastReportData?.plain_summary || '');
     } finally {
         loading.classList.add('hidden');
         output.classList.remove('hidden');
@@ -1064,6 +1068,8 @@ function loadAdminDevice(deviceId) {
     document.getElementById('edit-device-location').value = opt.dataset.location;
     document.getElementById('edit-device-description').value = opt.dataset.description;
     form.classList.remove('hidden');
+    if (document.getElementById('edit-device-scope-label')) document.getElementById('edit-device-scope-label').textContent = 'Updating device: ' + deviceId;
+    if (document.getElementById('edit-device-id-label')) document.getElementById('edit-device-id-label').textContent = deviceId;
 }
 
 async function handleEditDevice(e) {

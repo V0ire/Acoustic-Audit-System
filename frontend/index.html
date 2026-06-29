@@ -66,16 +66,23 @@
             <main>
                 <!-- TAB 1: LIVE -->
                 <section id="view-live" class="view active">
-                    <div id="smart-status-banner" class="status-banner quiet-state">
-                        <div class="status-icon" id="status-icon">ℹ️</div>
-                        <div class="status-content">
-                            <h2 id="status-noise-state">Loading...</h2>
-                            <p id="status-message">Waiting for data.</p>
-                            <div class="status-meta">
-                                <span>Room: <strong id="status-room">--</strong></span> | 
-                                <span>Location: <strong id="status-location">--</strong></span> | 
-                                <span>Updated: <strong id="status-time">--</strong></span>
+                    <div id="smart-status-banner" class="status-hero">
+                        <div class="status-hero-main">
+                            <div class="status-hero-indicator" id="status-indicator"></div>
+                            <div class="status-hero-text">
+                                <h2 id="status-noise-state">Loading...</h2>
+                                <p id="status-message">Waiting for data.</p>
+                                <p id="status-subtitle" class="status-subtitle hidden"></p>
                             </div>
+                        </div>
+                        <div class="status-hero-meta">
+                            <span id="status-room-meta">--</span>
+                            <span class="meta-sep">·</span>
+                            <span id="status-location-meta">--</span>
+                            <span class="meta-sep">·</span>
+                            <span id="status-time-meta">--</span>
+                            <span class="meta-sep">·</span>
+                            <span class="badge" id="status-data-badge">--</span>
                         </div>
                     </div>
                     <div class="card-grid">
@@ -98,6 +105,7 @@
                             <h3>Sensor / Calibration</h3>
                             <p><strong>Cal Offset:</strong> <span id="live-cal-offset">--</span> dB</p>
                             <p><strong>Weighting:</strong> <span id="live-weighting">--</span></p>
+                            <p class="quality-detail" id="live-weighting-hint"></p>
                             <p><strong>Edge Version:</strong> <span id="live-edge-version">--</span></p>
                         </div>
                         <div class="card details-card">
@@ -302,6 +310,7 @@
                             </div>
                             <button class="btn-primary" id="btn-generate-ai" onclick="generateAiReport()" disabled>Generate AI Report</button>
                             <div id="llm-loading" class="hidden" style="margin-top: 12px;">Generating...</div>
+                            <p class="quality-detail" style="margin-top: 8px;">AI report is generated from summarized dashboard measurements, not raw audio.</p>
                             <div id="llm-output" class="hidden" style="margin-top: 12px; padding: 12px; background: #f5f5f5; border-radius: 4px; white-space: pre-wrap; font-family: monospace;"></div>
                         </div>
 
@@ -368,10 +377,12 @@
                             </select>
                         </div>
                         <form id="edit-device-form" onsubmit="handleEditDevice(event)" class="hidden">
+                            <p class="quality-detail" id="edit-device-scope-label">Updating selected device only.</p>
                             <div class="form-group"><label>Room</label><input type="text" id="edit-device-room"></div>
                             <div class="form-group"><label>Location / Building</label><input type="text" id="edit-device-location"></div>
                             <div class="form-group"><label>Description</label><input type="text" id="edit-device-description"></div>
                             <button type="submit" class="btn-primary">Update Device</button>
+                            <span class="quality-detail" id="edit-device-id-label"></span>
                         </form>
                     </div>
                 </section>
