@@ -83,8 +83,10 @@ def record_audio():
         return None
 
 def apply_a_weighting(samples, sample_rate):
-    sos = dsp_signal.aweighting(sample_rate)
-    return dsp_signal.sosfilt(sos, samples)
+    b = [0.035907, -0.071814, 0.035907]
+    a = [1, -1.97914, 0.97956]
+    filtered = dsp_signal.lfilter(b, a, samples)
+    return np.nan_to_num(filtered)
 
 def compute_rms(raw_bytes):
     num_samples = len(raw_bytes) // BYTES_PER_SAMPLE
@@ -106,7 +108,7 @@ def main():
     global running
     print(f"[edge] Acoustic Edge Service starting... ID: {DEVICE_ID} | Weighting: {WEIGHTING}")
     
-    client = mqtt.Client(client_id=f"edge_{DEVICE_ID}")
+    client = mqtt.Client(client_id=f"edge_{DEVICE_ID}", clean_session=True)
     if MQTT_USERNAME and MQTT_PASSWORD:
         client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
     
@@ -117,7 +119,7 @@ def main():
     client.on_disconnect = on_disconnect
     
     try:
-        client.connect(MQTT_HOST, MQTT_PORT, keepalive=120)
+        client.connect(MQTT_HOST, MQTT_PORT, keepalive=300)
         client.loop_start()
     except Exception as e:
         print(f"[edge] Connection failed: {e}")
