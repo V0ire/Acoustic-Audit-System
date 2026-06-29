@@ -34,6 +34,21 @@ Jika hardware gagal (misal: I2S error, kabel putus), segera matikan `acoustic_ed
 python demo-simulate.py
 ```
 
+### 3. Mode Dry-Run (Tanpa MQTT)
+Digunakan untuk menguji coba penangkapan suara dan melihat estimasi SPL secara lokal tanpa memerlukan koneksi ke MQTT.
+```bash
+python acoustic_edge.py --dry-run
+```
+
+## Mode Pembobotan Suara (Weighting)
+Modul edge mendukung konfigurasi `WEIGHTING` di file `.env`:
+* **Flat Weighting (`WEIGHTING=flat`)**: Estimasi SPL (Sound Pressure Level) murni dari sinyal audio tanpa pembobotan filter. (Default)
+* **A-Weighting (`WEIGHTING=A`)**: Menerapkan filter frekuensi yang secara khusus mengaproksimasi sensitivitas pendengaran telinga manusia. (Membutuhkan `scipy` terinstall).
+
+**Perhatian:** 
+* Sistem dashboard hanya akan menampilkan satuan **dBA** jika payload dikirimkan menggunakan A-Weighting filter. 
+* Sistem ini memberikan estimasi Sound Pressure Level (SPL). Walaupun filter A-Weighting diterapkan, pengukuran ini tidak tersertifikasi dan tetap memerlukan kalibrasi manual (via `CALIBRATION_OFFSET`) untuk mencocokkan dengan *Sound Level Meter* sungguhan.
+
 ## Tips Demo
 - Jika menjalankan via `systemd` (tugas Role 4), Anda dapat melihat log secara *real-time* dengan:
   ```bash
