@@ -15,6 +15,8 @@ import struct
 import subprocess
 import math
 import signal
+import numpy as np
+from scipy import signal as dsp_signal
 from datetime import datetime, timezone, timedelta
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
@@ -32,6 +34,7 @@ ROOM = os.getenv("ROOM", "R402")
 PUBLISH_INTERVAL = int(os.getenv("PUBLISH_INTERVAL_SECONDS", 5))
 CALIBRATION_OFFSET = float(os.getenv("CALIBRATION_OFFSET", 0))
 CALIBRATION_SCALE = float(os.getenv("CALIBRATION_SCALE", 1.0))
+WEIGHTING = os.getenv("WEIGHTING", "flat")
 
 # ALSA device for INMP441
 ALSA_DEVICE = os.getenv("ALSA_DEVICE", "plughw:2,0")
@@ -45,16 +48,10 @@ TOPIC = f"acoustic/devices/{DEVICE_ID}/measurements"
 HEARTBEAT_TOPIC = f"acoustic/devices/{DEVICE_ID}/heartbeat"
 STATUS_TOPIC = f"acoustic/devices/{DEVICE_ID}/status"
 
-# Asia/Jakarta timezone (UTC+7)
 TZ_JKT = timezone(timedelta(hours=7))
-
-# Epsilon to avoid log(0)
 EPSILON = 1e-10
-
-# Reference value for dB calculation (max value for 32-bit signed int)
 REF_VALUE = 2**31
 
-# Graceful shutdown
 running = True
 
 def signal_handler(sig, frame):
@@ -65,7 +62,6 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-# --- MQTT Callbacks ---
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print(f"[edge] Connected to MQTT broker at {MQTT_HOST}:{MQTT_PORT}")
@@ -74,11 +70,9 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     if rc != 0:
-        print(f"[edge] MQTT disconnected unexpectedly, rc={rc}. Will auto-reconnect.")
+        print(f"[edge] MQTT disconnected unexpectedly, rc={rc}.")
 
-# --- Audio Functions ---
 def record_audio():
-    """Record audio from INMP441 using arecord, return raw bytes."""
     cmd = ["arecord", "-D", ALSA_DEVICE, "-c", str(CHANNELS), "-r", str(SAMPLE_RATE),
            "-f", SAMPLE_FORMAT, "-t", "raw", "-d", str(RECORD_SECONDS), "-q"]
     try:
@@ -88,28 +82,34 @@ def record_audio():
         print(f"[edge] record error: {e}")
         return None
 
+def apply_a_weighting(samples, sample_rate):
+    sos = dsp_signal.aweighting(sample_rate)
+    return dsp_signal.sosfilt(sos, samples)
+
 def compute_rms(raw_bytes):
     num_samples = len(raw_bytes) // BYTES_PER_SAMPLE
     if num_samples == 0: return 0.0
-    samples = struct.unpack(f"<{num_samples}i", raw_bytes[:num_samples * BYTES_PER_SAMPLE])
-    normalized = [s / REF_VALUE for s in samples]
-    return math.sqrt(sum(s * s for s in normalized) / num_samples)
+    samples = np.frombuffer(raw_bytes, dtype=np.int32)
+    
+    if WEIGHTING == "A":
+        samples = apply_a_weighting(samples.astype(float), SAMPLE_RATE)
+    
+    normalized = samples / REF_VALUE
+    return np.sqrt(np.mean(normalized**2))
 
 def rms_to_db(rms):
     raw_db = 20 * math.log10(rms + EPSILON)
     db = CALIBRATION_SCALE * raw_db + CALIBRATION_OFFSET
     return round(max(30.0, min(120.0, db)), 1)
 
-# --- Main ---
 def main():
     global running
-    print(f"[edge] Acoustic Edge Service starting... ID: {DEVICE_ID}")
+    print(f"[edge] Acoustic Edge Service starting... ID: {DEVICE_ID} | Weighting: {WEIGHTING}")
     
     client = mqtt.Client(client_id=f"edge_{DEVICE_ID}")
     if MQTT_USERNAME and MQTT_PASSWORD:
         client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
     
-    # LWT setup
     lwt_payload = json.dumps({"device_id": DEVICE_ID, "status": "offline", "reason": "connection_lost"})
     client.will_set(STATUS_TOPIC, lwt_payload, qos=1, retain=True)
     
@@ -117,12 +117,11 @@ def main():
     client.on_disconnect = on_disconnect
     
     try:
-        client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
+        client.connect(MQTT_HOST, MQTT_PORT, keepalive=120)
         client.loop_start()
     except Exception as e:
         print(f"[edge] Connection failed: {e}")
 
-    # Mark online
     client.publish(STATUS_TOPIC, json.dumps({"device_id": DEVICE_ID, "status": "online"}), qos=1, retain=True)
 
     while running:
@@ -133,24 +132,23 @@ def main():
             rms = compute_rms(raw_audio)
             db_est = rms_to_db(rms)
             
-            # Canonical Payload
+            print(f"[edge] Publishing SPL: {db_est} dB")
+            
             payload = {
                 "schema_version": "1.0",
                 "device_id": DEVICE_ID,
                 "room": ROOM,
                 "timestamp": datetime.now(TZ_JKT).isoformat(),
-                "metric_type": "spl_estimate",
-                "weighting": "flat",
+                "metric_type": "a_weighted_estimate" if WEIGHTING == "A" else "spl_estimate",
+                "weighting": WEIGHTING,
                 "spl_avg_db": db_est,
                 "spl_max_db": db_est,
                 "calibration_offset_db": CALIBRATION_OFFSET,
                 "status": "ok",
                 "quality_flags": {"clipping": False, "low_signal": False, "mic_error": False},
-                "edge_version": "edge-0.2.0"
+                "edge_version": "raspi-edge-aweight-v1"
             }
             client.publish(TOPIC, json.dumps(payload), qos=1)
-            
-            # Heartbeat (simplified)
             client.publish(HEARTBEAT_TOPIC, json.dumps({"device_id": DEVICE_ID, "status": "online"}), qos=0)
             
         elapsed = time.time() - cycle_start
