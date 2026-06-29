@@ -83,10 +83,12 @@ def record_audio():
         return None
 
 def apply_a_weighting(samples, sample_rate):
-    b = [0.035907, -0.071814, 0.035907]
-    a = [1, -1.97914, 0.97956]
-    filtered = dsp_signal.lfilter(b, a, samples)
-    return np.nan_to_num(filtered)
+    """Manual A-weighting filter implementation for stability."""
+    # A-weighting filter coefficients (Biquad)
+    # Filter A-weighting standar
+    b = [0.0359, -0.0718, 0.0359]
+    a = [1, -1.979, 0.979]
+    return dsp_signal.lfilter(b, a, samples)
 
 def compute_rms(raw_bytes):
     num_samples = len(raw_bytes) // BYTES_PER_SAMPLE
